@@ -47,7 +47,7 @@ func NewClient(addr string, encoder *encrypt.Encoder) (*Client, error) {
 }
 
 func dial(addr string, retry int) (net.Conn, error) {
-	for i := 0; i < retry; i++ {
+	for i := 0; retry == 0 || i < retry; i++ {
 		conn, err := net.Dial("tcp", addr)
 		if err == nil {
 			return conn, nil
@@ -81,7 +81,7 @@ func (cli *Client) serve() error {
 		cli.tp.Close()
 		cli.tp = nil
 		cli.Unlock()
-		conn, err := dial(cli.addr, 5)
+		conn, err := dial(cli.addr, 0)
 		if err != nil {
 			continue
 		}
