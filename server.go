@@ -12,6 +12,7 @@ type AcceptStreamHandlerFunc func(*Stream)
 
 // Server rpc server
 type Server struct {
+	listener       net.Listener
 	encoder        *encrypt.Encoder
 	onRequest      RequestHandlerFunc
 	onAcceptStream AcceptStreamHandlerFunc
@@ -29,18 +30,24 @@ func NewServer(encoder *encrypt.Encoder, onRequest RequestHandlerFunc,
 
 // ListenAndServe listen and serve
 func (svr *Server) ListenAndServe(addr string) error {
-	l, err := net.Listen("tcp", addr)
+	var err error
+	svr.listener, err = net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
-	defer l.Close()
+	defer svr.listener.Close()
 	for {
-		conn, err := l.Accept()
+		conn, err := svr.listener.Accept()
 		if err != nil {
 			continue
 		}
 		go svr.handle(conn)
 	}
+}
+
+// Close close server
+func (svr *Server) Close() error {
+	return svr.listener.Close()
 }
 
 func (svr *Server) handle(conn net.Conn) {

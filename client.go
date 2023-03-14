@@ -1,6 +1,7 @@
 package crpc
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -13,12 +14,16 @@ import (
 )
 
 var errReconnect = errors.New("reconnecting")
+var errClosed = errors.New("closed")
 
 // Client rpc client
 type Client struct {
 	sync.RWMutex
 	addr string
 	tp   *transport
+	// runtime
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // NewClient create client
@@ -27,10 +32,15 @@ func NewClient(addr string, encoder *encrypt.Encoder) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{
-		addr: addr,
-		tp:   new(conn, encoder),
-	}, nil
+	ctx, cancel := context.WithCancel(context.Background())
+	cli := &Client{
+		addr:   addr,
+		tp:     new(conn, encoder),
+		ctx:    ctx,
+		cancel: cancel,
+	}
+	go cli.serve()
+	return cli, nil
 }
 
 func dial(addr string, retry int) (net.Conn, error) {
@@ -44,10 +54,22 @@ func dial(addr string, retry int) (net.Conn, error) {
 	return nil, fmt.Errorf("transport: dial more than %d times", retry)
 }
 
-// Serve client serve
-func (cli *Client) Serve() error {
+// Close close client
+func (cli *Client) Close() error {
+	err := cli.tp.Close()
+	cli.cancel()
+	return err
+}
+
+func (cli *Client) serve() error {
+	defer cli.cancel()
 	encoder := cli.tp.encoder
 	for {
+		select {
+		case <-cli.ctx.Done():
+			return errClosed
+		default:
+		}
 		err := cli.tp.Serve()
 		if err != nil {
 			logging.Error("serve %s: %v", cli.addr, err)
@@ -68,6 +90,11 @@ func (cli *Client) Serve() error {
 
 // Call call http request
 func (cli *Client) Call(req *http.Request, timeout time.Duration) (*http.Response, error) {
+	select {
+	case <-cli.ctx.Done():
+		return nil, errClosed
+	default:
+	}
 	cli.RLock()
 	tp := cli.tp
 	cli.RUnlock()
@@ -79,6 +106,11 @@ func (cli *Client) Call(req *http.Request, timeout time.Duration) (*http.Respons
 
 // OpenStream open stream
 func (cli *Client) OpenStream(timeout time.Duration) (*Stream, error) {
+	select {
+	case <-cli.ctx.Done():
+		return nil, errClosed
+	default:
+	}
 	cli.RLock()
 	tp := cli.tp
 	cli.RUnlock()
