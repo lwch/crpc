@@ -1,2 +1,7 @@
-# whiteRPC
-rpc on tcp connection, supported encrypt and data serialize
+# crpc
+
+golang rpc框架，支持以下功能：
+
+1. 流式传输
+2. 数据加密
+3. 结构序列化
