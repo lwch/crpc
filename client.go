@@ -13,8 +13,11 @@ import (
 	"github.com/lwch/logging"
 )
 
-var errReconnect = errors.New("reconnecting")
-var errClosed = errors.New("closed")
+// ErrReconnecting reconnecting error
+var ErrReconnecting = errors.New("reconnecting")
+
+// ErrClosed closed error
+var ErrClosed = errors.New("closed")
 
 // Client rpc client
 type Client struct {
@@ -67,7 +70,7 @@ func (cli *Client) serve() error {
 	for {
 		select {
 		case <-cli.ctx.Done():
-			return errClosed
+			return ErrClosed
 		default:
 		}
 		err := cli.tp.Serve()
@@ -80,7 +83,7 @@ func (cli *Client) serve() error {
 		cli.Unlock()
 		conn, err := dial(cli.addr, 5)
 		if err != nil {
-			return err
+			continue
 		}
 		cli.Lock()
 		cli.tp = new(conn, encoder)
@@ -92,14 +95,14 @@ func (cli *Client) serve() error {
 func (cli *Client) Call(req *http.Request, timeout time.Duration) (*http.Response, error) {
 	select {
 	case <-cli.ctx.Done():
-		return nil, errClosed
+		return nil, ErrClosed
 	default:
 	}
 	cli.RLock()
 	tp := cli.tp
 	cli.RUnlock()
 	if tp == nil {
-		return nil, errReconnect
+		return nil, ErrReconnecting
 	}
 	return tp.Call(req, timeout)
 }
@@ -108,14 +111,14 @@ func (cli *Client) Call(req *http.Request, timeout time.Duration) (*http.Respons
 func (cli *Client) OpenStream(timeout time.Duration) (*Stream, error) {
 	select {
 	case <-cli.ctx.Done():
-		return nil, errClosed
+		return nil, ErrClosed
 	default:
 	}
 	cli.RLock()
 	tp := cli.tp
 	cli.RUnlock()
 	if tp == nil {
-		return nil, errReconnect
+		return nil, ErrReconnecting
 	}
 	return tp.OpenStream(timeout)
 }
