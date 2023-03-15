@@ -22,12 +22,13 @@ type Stream struct {
 	closed atomic.Bool
 	chRead chan []byte
 	// runtime
+	err    error
 	ctx    context.Context
-	cancel context.CancelCauseFunc
+	cancel context.CancelFunc
 }
 
 func newStream(parent *Conn, id uint32) *Stream {
-	ctx, cancel := context.WithCancelCause(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Stream{
 		parent: parent,
 		id:     id & 0xffffff,
@@ -50,7 +51,8 @@ func (s *Stream) Close() error {
 
 func (s *Stream) onClose(err error) {
 	s.closed.Store(true)
-	s.cancel(err)
+	s.err = err
+	s.cancel()
 	sequence := s.parent.sequence.Add(1)
 	binary.Write(s.parent.conn, binary.BigEndian, header{
 		Size:     0,
@@ -75,7 +77,7 @@ func (s *Stream) Read(p []byte) (int, error) {
 		}
 		return copy(p, data), nil
 	case <-s.ctx.Done():
-		return 0, s.ctx.Err()
+		return 0, s.err
 	}
 }
 
