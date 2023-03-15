@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 )
 
-var errStreamClosed = errors.New("stream closed")
-var errClosedByRemote = errors.New("closed by remote")
+var errStreamClosed = errors.New("network: stream closed")
+var errClosedByRemote = errors.New("network: closed by remote")
 
 // Stream stream
 type Stream struct {
@@ -96,15 +96,15 @@ func (s *Stream) Write(p []byte) (int, error) {
 		Flag:     s.ID() | flagStreamData,
 	})
 	if err != nil {
-		return 0, fmt.Errorf("build packet header[%d]: %v", sequence, err)
+		return 0, fmt.Errorf("network: build packet header[%d]: %v", sequence, err)
 	}
 	_, err = io.Copy(&buf, bytes.NewReader(p))
 	if err != nil {
-		return 0, fmt.Errorf("build packet payload[%d]: %v", sequence, err)
+		return 0, fmt.Errorf("network: build packet payload[%d]: %v", sequence, err)
 	}
 	_, err = s.parent.conn.Write(buf.Bytes())
 	if err != nil {
-		return 0, fmt.Errorf("write packet[%d]: %v", sequence, err)
+		return 0, fmt.Errorf("network: write packet[%d]: %v", sequence, err)
 	}
 	return len(p), nil
 }

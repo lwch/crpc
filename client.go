@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lwch/crpc/encrypt"
+	"github.com/lwch/crpc/encoding"
 	"github.com/lwch/logging"
 )
 
@@ -30,7 +30,7 @@ type Client struct {
 }
 
 // NewClient create client
-func NewClient(addr string, encoder *encrypt.Encoder) (*Client, error) {
+func NewClient(addr string) (*Client, error) {
 	conn, err := dial(addr, 1)
 	if err != nil {
 		return nil, err
@@ -38,12 +38,17 @@ func NewClient(addr string, encoder *encrypt.Encoder) (*Client, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cli := &Client{
 		addr:   addr,
-		tp:     new(conn, encoder),
+		tp:     new(conn),
 		ctx:    ctx,
 		cancel: cancel,
 	}
 	go cli.serve()
 	return cli, nil
+}
+
+// SetEncrypter set encrypter
+func (cli *Client) SetEncrypter(enc encoding.Encrypter) {
+	cli.tp.SetEncrypter(enc)
 }
 
 func dial(addr string, retry int) (net.Conn, error) {
@@ -66,7 +71,6 @@ func (cli *Client) Close() error {
 
 func (cli *Client) serve() error {
 	defer cli.cancel()
-	encoder := cli.tp.encoder
 	for {
 		select {
 		case <-cli.ctx.Done():
@@ -77,6 +81,7 @@ func (cli *Client) serve() error {
 		if err != nil {
 			logging.Error("serve %s: %v", cli.addr, err)
 		}
+		encrypter := cli.tp.encrypter
 		cli.Lock()
 		cli.tp.Close()
 		cli.tp = nil
@@ -85,8 +90,10 @@ func (cli *Client) serve() error {
 		if err != nil {
 			continue
 		}
+		tp := new(conn)
+		tp.SetEncrypter(encrypter)
 		cli.Lock()
-		cli.tp = new(conn, encoder)
+		cli.tp = tp
 		cli.Unlock()
 	}
 }

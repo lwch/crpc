@@ -1,5 +1,8 @@
 # crpc
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/lwch/crpc)](https://goreportcard.com/report/github.com/lwch/crpc)
+[![license](https://img.shields.io/github/license/lwch/crpc)](https://opensource.org/licenses/MIT)
+
 golang rpc框架，支持以下功能：
 
 1. 流式传输
@@ -64,7 +67,7 @@ golang rpc框架，支持以下功能：
 
 #### http请求
 
-grpc框架底层使用`X-Request-Id`字段进行request与response的关联，因此在使用过程中请勿使用该字段。
+grpc框架底层使用`X-Crpc-Request-Id`字段进行request与response的关联，因此在使用过程中请勿使用该字段。
 
 ## 示例
 

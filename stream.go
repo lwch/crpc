@@ -22,8 +22,11 @@ func (s *Stream) Write(p []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	if s.parent.encoder != nil {
-		data = s.parent.encoder.Encrypt(data)
+	if s.parent.encrypter != nil {
+		data, err = s.parent.encrypter.Encrypt(data)
+		if err != nil {
+			return 0, err
+		}
 	}
 	_, err = s.s.Write(data)
 	if err != nil {
@@ -43,8 +46,8 @@ func (s *Stream) Read(p []byte) (int, error) {
 		return 0, nil
 	}
 	buf = buf[:n]
-	if s.parent.encoder != nil {
-		buf, err = s.parent.encoder.Decrypt(buf)
+	if s.parent.encrypter != nil {
+		buf, err = s.parent.encrypter.Decrypt(buf)
 		if err != nil {
 			return 0, err
 		}

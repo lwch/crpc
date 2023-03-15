@@ -15,7 +15,6 @@ import (
 
 	"github.com/lwch/crpc/encoding"
 	"github.com/lwch/crpc/encoding/codec"
-	"github.com/lwch/crpc/encrypt"
 	"github.com/lwch/crpc/network"
 	"github.com/lwch/logging"
 )
@@ -29,7 +28,7 @@ type RequestHandlerFunc func(*http.Request) (*http.Response, error)
 type transport struct {
 	conn       *network.Conn
 	codec      encoding.Codec
-	encoder    *encrypt.Encoder
+	encrypter  encoding.Encrypter
 	sequence   atomic.Uint64
 	onResponse map[uint64]chan *http.Response
 	mResponse  sync.RWMutex
@@ -39,12 +38,11 @@ type transport struct {
 	cancel context.CancelCauseFunc
 }
 
-func new(conn net.Conn, encoder *encrypt.Encoder) *transport {
+func new(conn net.Conn) *transport {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	t := &transport{
 		conn:       network.New(conn),
 		codec:      codec.New(),
-		encoder:    encoder,
 		onResponse: make(map[uint64]chan *http.Response),
 		onRequest: func(r *http.Request) (*http.Response, error) {
 			return &http.Response{}, nil
@@ -54,6 +52,10 @@ func new(conn net.Conn, encoder *encrypt.Encoder) *transport {
 	}
 	go t.keepalive()
 	return t
+}
+
+func (tp *transport) SetEncrypter(enc encoding.Encrypter) {
+	tp.encrypter = enc
 }
 
 func (tp *transport) AcceptStream() (*Stream, error) {

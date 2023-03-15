@@ -3,7 +3,7 @@ package crpc
 import (
 	"net"
 
-	"github.com/lwch/crpc/encrypt"
+	"github.com/lwch/crpc/encoding"
 	"github.com/lwch/logging"
 )
 
@@ -13,16 +13,16 @@ type AcceptStreamHandlerFunc func(*Stream)
 // Server rpc server
 type Server struct {
 	listener       net.Listener
-	encoder        *encrypt.Encoder
+	encrypter      encoding.Encrypter
 	onRequest      RequestHandlerFunc
 	onAcceptStream AcceptStreamHandlerFunc
 }
 
 // NewServer create server
-func NewServer(encoder *encrypt.Encoder, onRequest RequestHandlerFunc,
+func NewServer(encrypter encoding.Encrypter, onRequest RequestHandlerFunc,
 	onAcceptStream AcceptStreamHandlerFunc) *Server {
 	return &Server{
-		encoder:        encoder,
+		encrypter:      encrypter,
 		onRequest:      onRequest,
 		onAcceptStream: onAcceptStream,
 	}
@@ -52,7 +52,8 @@ func (svr *Server) Close() error {
 
 func (svr *Server) handle(conn net.Conn) {
 	defer conn.Close()
-	tp := new(conn, svr.encoder)
+	tp := new(conn)
+	tp.SetEncrypter(svr.encrypter)
 	defer tp.Close()
 	tp.SetOnRequest(svr.onRequest)
 	go svr.acceptStream(tp)

@@ -10,8 +10,8 @@ import (
 	"hash/crc32"
 )
 
-var errInvalidEncryptChecksum = errors.New("invalid encrypt checksum")
-var errInvalidBlockSize = errors.New("invalid block size")
+var errInvalidEncryptChecksum = errors.New("encrypt: invalid encrypt checksum")
+var errInvalidBlockSize = errors.New("encrypt: invalid block size")
 
 // Method encrypt method
 type Method byte
@@ -74,6 +74,9 @@ func NewEncoder(m Method, key string) *Encoder {
 	case EncryptDes:
 		key = repeat(key, 24+des.BlockSize)
 		block, err = des.NewTripleDESCipher([]byte(key[:24]))
+		if err != nil {
+			return nil
+		}
 		iv = []byte(key[24 : 24+des.BlockSize])
 		pad = makePad(des.BlockSize)
 	}
@@ -86,13 +89,13 @@ func NewEncoder(m Method, key string) *Encoder {
 }
 
 // Encrypt encrypt data
-func (enc *Encoder) Encrypt(src []byte) []byte {
+func (enc *Encoder) Encrypt(src []byte) ([]byte, error) {
 	bm := cipher.NewCBCEncrypter(enc.block, enc.iv)
 	src = binary.BigEndian.AppendUint32(src, crc32.ChecksumIEEE(src))
 	src = enc.pad(src)
 	dst := make([]byte, len(src))
 	bm.CryptBlocks(dst, src)
-	return dst
+	return dst, nil
 }
 
 // Decrypt decrypt data

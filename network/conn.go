@@ -17,11 +17,11 @@ import (
 	"github.com/lwch/logging"
 )
 
-var errTooLarge = errors.New("too large")
-var errBufferTooShort = errors.New("buffer too short")
-var errInvalidPacketChecksum = errors.New("invalid packet checksum")
-var errOpenStreamTimeout = errors.New("open stream timeout")
-var errStreamNotFound = errors.New("stream not found")
+var errTooLarge = errors.New("network: too large")
+var errBufferTooShort = errors.New("network: buffer too short")
+var errInvalidPacketChecksum = errors.New("network: invalid packet checksum")
+var errOpenStreamTimeout = errors.New("network: open stream timeout")
+var errStreamNotFound = errors.New("network: stream not found")
 
 const (
 	flagStreamOpen    = 1 << 31 // 32位表示open请求
@@ -105,7 +105,7 @@ func (c *Conn) OpenStream(timeout time.Duration) (*Stream, error) {
 		Flag:     flagStreamOpen,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("send openstream: %v", err)
+		return nil, fmt.Errorf("network: send openstream: %v", err)
 	}
 	after := time.After(timeout)
 	select {
@@ -132,15 +132,15 @@ func (c *Conn) Write(p []byte) (int, error) {
 		Flag:     0,
 	})
 	if err != nil {
-		return 0, fmt.Errorf("build packet header[%d]: %v", sequence, err)
+		return 0, fmt.Errorf("network: build packet header[%d]: %v", sequence, err)
 	}
 	_, err = io.Copy(&buf, bytes.NewReader(p))
 	if err != nil {
-		return 0, fmt.Errorf("build packet payload[%d]: %v", sequence, err)
+		return 0, fmt.Errorf("network: build packet payload[%d]: %v", sequence, err)
 	}
 	_, err = c.conn.Write(buf.Bytes())
 	if err != nil {
-		return 0, fmt.Errorf("write packet[%d]: %v", sequence, err)
+		return 0, fmt.Errorf("network: write packet[%d]: %v", sequence, err)
 	}
 	return len(p), nil
 }
@@ -164,7 +164,7 @@ func (c *Conn) read(p []byte) (*header, int, error) {
 	var hdr header
 	err := binary.Read(c.conn, binary.BigEndian, &hdr)
 	if err != nil {
-		return nil, 0, fmt.Errorf("read packet header: %v", err)
+		return nil, 0, fmt.Errorf("network: read packet header: %v", err)
 	}
 	if len(p) < int(hdr.Size) {
 		return nil, 0, errBufferTooShort
@@ -174,7 +174,7 @@ func (c *Conn) read(p []byte) (*header, int, error) {
 	}
 	n, err := io.ReadFull(c.conn, p[:hdr.Size])
 	if err != nil {
-		return nil, 0, fmt.Errorf("read packet payload[%d]: %v", hdr.Sequence, err)
+		return nil, 0, fmt.Errorf("network: read packet payload[%d]: %v", hdr.Sequence, err)
 	}
 	if crc32.ChecksumIEEE(p[:hdr.Size]) != hdr.Crc32 {
 		return nil, 0, errInvalidPacketChecksum
@@ -286,11 +286,11 @@ func (c *Conn) SendKeepalive() error {
 		Flag:     flagPing,
 	})
 	if err != nil {
-		return fmt.Errorf("build ping packet header[%d]: %v", sequence, err)
+		return fmt.Errorf("network: build ping packet header[%d]: %v", sequence, err)
 	}
 	_, err = c.conn.Write(buf.Bytes())
 	if err != nil {
-		return fmt.Errorf("write ping packet[%d]: %v", sequence, err)
+		return fmt.Errorf("network: write ping packet[%d]: %v", sequence, err)
 	}
 	return nil
 }
@@ -305,11 +305,11 @@ func (c *Conn) handlePing() error {
 		Flag:     flagPong,
 	})
 	if err != nil {
-		return fmt.Errorf("build pong packet header[%d]: %v", sequence, err)
+		return fmt.Errorf("network: build pong packet header[%d]: %v", sequence, err)
 	}
 	_, err = c.conn.Write(buf.Bytes())
 	if err != nil {
-		return fmt.Errorf("write pong packet[%d]: %v", sequence, err)
+		return fmt.Errorf("network: write pong packet[%d]: %v", sequence, err)
 	}
 	return nil
 }
