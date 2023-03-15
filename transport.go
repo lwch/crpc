@@ -35,12 +35,13 @@ type transport struct {
 	mResponse  sync.RWMutex
 	onRequest  RequestHandlerFunc
 	// runtime
+	err    error
 	ctx    context.Context
-	cancel context.CancelCauseFunc
+	cancel context.CancelFunc
 }
 
 func new(conn net.Conn) *transport {
-	ctx, cancel := context.WithCancelCause(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	t := &transport{
 		conn:       network.New(conn),
 		codec:      codec.New(),
@@ -114,7 +115,7 @@ func (tp *transport) Call(req *http.Request, timeout time.Duration) (*http.Respo
 	}
 	select {
 	case <-tp.ctx.Done():
-		return nil, tp.ctx.Err()
+		return nil, tp.err
 	case <-time.After(timeout):
 		return nil, ErrTimeout
 	case resp := <-ch:
@@ -124,7 +125,10 @@ func (tp *transport) Call(req *http.Request, timeout time.Duration) (*http.Respo
 
 func (tp *transport) Serve() error {
 	var err error
-	defer tp.cancel(err)
+	defer func() {
+		tp.err = err
+		tp.cancel()
+	}()
 	buf := make([]byte, 65535)
 	for {
 		var n int
