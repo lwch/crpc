@@ -29,6 +29,7 @@ type transport struct {
 	conn       *network.Conn
 	codec      encoding.Codec
 	encrypter  encoding.Encrypter
+	compresser encoding.Compresser
 	sequence   atomic.Uint64
 	onResponse map[uint64]chan *http.Response
 	mResponse  sync.RWMutex
@@ -54,8 +55,12 @@ func new(conn net.Conn) *transport {
 	return t
 }
 
-func (tp *transport) SetEncrypter(enc encoding.Encrypter) {
-	tp.encrypter = enc
+func (tp *transport) SetEncrypter(encrypter encoding.Encrypter) {
+	tp.encrypter = encrypter
+}
+
+func (tp *transport) SetCompresser(compresser encoding.Compresser) {
+	tp.compresser = compresser
 }
 
 func (tp *transport) AcceptStream() (*Stream, error) {

@@ -47,8 +47,13 @@ func NewClient(addr string) (*Client, error) {
 }
 
 // SetEncrypter set encrypter
-func (cli *Client) SetEncrypter(enc encoding.Encrypter) {
-	cli.tp.SetEncrypter(enc)
+func (cli *Client) SetEncrypter(encrypter encoding.Encrypter) {
+	cli.tp.SetEncrypter(encrypter)
+}
+
+// SetCompresser set compresser
+func (cli *Client) SetCompresser(compresser encoding.Compresser) {
+	cli.tp.SetCompresser(compresser)
 }
 
 func dial(addr string, retry int) (net.Conn, error) {
@@ -82,6 +87,7 @@ func (cli *Client) serve() error {
 			logging.Error("serve %s: %v", cli.addr, err)
 		}
 		encrypter := cli.tp.encrypter
+		compresser := cli.tp.compresser
 		cli.Lock()
 		cli.tp.Close()
 		cli.tp = nil
@@ -92,6 +98,7 @@ func (cli *Client) serve() error {
 		}
 		tp := new(conn)
 		tp.SetEncrypter(encrypter)
+		tp.SetCompresser(compresser)
 		cli.Lock()
 		cli.tp = tp
 		cli.Unlock()

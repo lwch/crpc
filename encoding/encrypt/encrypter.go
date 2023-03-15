@@ -17,10 +17,10 @@ var errInvalidBlockSize = errors.New("encrypt: invalid block size")
 type Method byte
 
 const (
-	// EncryptAes aes method
-	EncryptAes Method = 1 << 0
-	// EncryptDes des method
-	EncryptDes Method = 1 << 1
+	// Aes aes method
+	Aes Method = 1 << 0
+	// Des des method
+	Des Method = 1 << 1
 )
 
 type padFunc func([]byte) []byte
@@ -56,14 +56,14 @@ func repeat(str string, limit int) string {
 	return str
 }
 
-// NewEncrypter create new encrypter
-func NewEncrypter(m Method, key string) *Encrypter {
+// New create new encrypter
+func New(m Method, key string) *Encrypter {
 	var block cipher.Block
 	var iv []byte
 	var err error
 	var pad padFunc
 	switch m {
-	case EncryptAes:
+	case Aes:
 		key = repeat(key, 32+aes.BlockSize)
 		block, err = aes.NewCipher([]byte(key[:32]))
 		if err != nil {
@@ -71,7 +71,7 @@ func NewEncrypter(m Method, key string) *Encrypter {
 		}
 		iv = []byte(key[32 : 32+aes.BlockSize])
 		pad = makePad(aes.BlockSize)
-	case EncryptDes:
+	case Des:
 		key = repeat(key, 24+des.BlockSize)
 		block, err = des.NewTripleDESCipher([]byte(key[:24]))
 		if err != nil {

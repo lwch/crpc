@@ -14,17 +14,26 @@ type AcceptStreamHandlerFunc func(*Stream)
 type Server struct {
 	listener       net.Listener
 	encrypter      encoding.Encrypter
+	compresser     encoding.Compresser
 	onRequest      RequestHandlerFunc
 	onAcceptStream AcceptStreamHandlerFunc
 }
 
+// ServerConfig server config
+type ServerConfig struct {
+	Encrypter  encoding.Encrypter
+	Compresser encoding.Compresser
+	OnRequest  RequestHandlerFunc
+	OnAccept   AcceptStreamHandlerFunc
+}
+
 // NewServer create server
-func NewServer(encrypter encoding.Encrypter, onRequest RequestHandlerFunc,
-	onAcceptStream AcceptStreamHandlerFunc) *Server {
+func NewServer(cfg ServerConfig) *Server {
 	return &Server{
-		encrypter:      encrypter,
-		onRequest:      onRequest,
-		onAcceptStream: onAcceptStream,
+		encrypter:      cfg.Encrypter,
+		compresser:     cfg.Compresser,
+		onRequest:      cfg.OnRequest,
+		onAcceptStream: cfg.OnAccept,
 	}
 }
 
@@ -54,6 +63,7 @@ func (svr *Server) handle(conn net.Conn) {
 	defer conn.Close()
 	tp := new(conn)
 	tp.SetEncrypter(svr.encrypter)
+	tp.SetCompresser(svr.compresser)
 	defer tp.Close()
 	tp.SetOnRequest(svr.onRequest)
 	go svr.acceptStream(tp)
