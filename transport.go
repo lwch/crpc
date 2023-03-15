@@ -15,7 +15,6 @@ import (
 
 	"github.com/lwch/crpc/encoding"
 	"github.com/lwch/crpc/encoding/codec"
-	"github.com/lwch/crpc/encrypt"
 	"github.com/lwch/crpc/network"
 	"github.com/lwch/logging"
 )
@@ -29,22 +28,23 @@ type RequestHandlerFunc func(*http.Request) (*http.Response, error)
 type transport struct {
 	conn       *network.Conn
 	codec      encoding.Codec
-	encoder    *encrypt.Encoder
+	encrypter  encoding.Encrypter
+	compresser encoding.Compresser
 	sequence   atomic.Uint64
 	onResponse map[uint64]chan *http.Response
 	mResponse  sync.RWMutex
 	onRequest  RequestHandlerFunc
 	// runtime
+	err    error
 	ctx    context.Context
-	cancel context.CancelCauseFunc
+	cancel context.CancelFunc
 }
 
-func new(conn net.Conn, encoder *encrypt.Encoder) *transport {
-	ctx, cancel := context.WithCancelCause(context.Background())
+func new(conn net.Conn) *transport {
+	ctx, cancel := context.WithCancel(context.Background())
 	t := &transport{
 		conn:       network.New(conn),
 		codec:      codec.New(),
-		encoder:    encoder,
 		onResponse: make(map[uint64]chan *http.Response),
 		onRequest: func(r *http.Request) (*http.Response, error) {
 			return &http.Response{}, nil
@@ -54,6 +54,14 @@ func new(conn net.Conn, encoder *encrypt.Encoder) *transport {
 	}
 	go t.keepalive()
 	return t
+}
+
+func (tp *transport) SetEncrypter(encrypter encoding.Encrypter) {
+	tp.encrypter = encrypter
+}
+
+func (tp *transport) SetCompresser(compresser encoding.Compresser) {
+	tp.compresser = compresser
 }
 
 func (tp *transport) AcceptStream() (*Stream, error) {
@@ -107,7 +115,7 @@ func (tp *transport) Call(req *http.Request, timeout time.Duration) (*http.Respo
 	}
 	select {
 	case <-tp.ctx.Done():
-		return nil, tp.ctx.Err()
+		return nil, tp.err
 	case <-time.After(timeout):
 		return nil, ErrTimeout
 	case resp := <-ch:
@@ -117,7 +125,10 @@ func (tp *transport) Call(req *http.Request, timeout time.Duration) (*http.Respo
 
 func (tp *transport) Serve() error {
 	var err error
-	defer tp.cancel(err)
+	defer func() {
+		tp.err = err
+		tp.cancel()
+	}()
 	buf := make([]byte, 65535)
 	for {
 		var n int

@@ -1,3 +1,5 @@
+github.com/klauspost/compress v1.16.3 h1:XuJt9zzcnaz6a16/OU53ZjWp/v7/42WcR5t2a0PcNQY=
+github.com/klauspost/compress v1.16.3/go.mod h1:ntbaceVETuRiXiv4DpjP66DpAtAGkEQskQzEyD//IeE=
 github.com/lwch/logging v0.0.0-20221013035348-e250895ebb72 h1:F2ZW/bIZQ+uYB1VsJ+H6355/0U+FOef+YAw39ZYTE0c=
 github.com/lwch/logging v0.0.0-20221013035348-e250895ebb72/go.mod h1:aXQui5bsF/d4I+z6szuiBWY5m4y9t6pyZ2Q/sLgkBBg=
 github.com/lwch/runtime v0.0.0-20190520054850-8c97e19e0c6d h1:Xg+zzPtvX22DaoJD5Bp0tqPdB8gn5WypghIJ4fluqiQ=

@@ -7,7 +7,7 @@ import (
 	"github.com/lwch/crpc/encoding/codec"
 )
 
-const keyRequestID = "X-Request-Id"
+const keyRequestID = "X-Crpc-Request-Id"
 
 func (tp *transport) buildRequest(req *http.Request) ([]byte, uint64, error) {
 	if req.Header == nil {
@@ -19,8 +19,17 @@ func (tp *transport) buildRequest(req *http.Request) ([]byte, uint64, error) {
 	if err != nil {
 		return nil, 0, err
 	}
-	if tp.encoder != nil {
-		payload = tp.encoder.Encrypt(payload)
+	if tp.compresser != nil {
+		payload, err = tp.compresser.Compress(payload)
+		if err != nil {
+			return nil, 0, err
+		}
+	}
+	if tp.encrypter != nil {
+		payload, err = tp.encrypter.Encrypt(payload)
+		if err != nil {
+			return nil, 0, err
+		}
 	}
 	return payload, seq, nil
 }
@@ -34,16 +43,32 @@ func (tp *transport) buildResponse(rep *http.Response, reqID uint64) ([]byte, er
 	if err != nil {
 		return nil, err
 	}
-	if tp.encoder != nil {
-		payload = tp.encoder.Encrypt(payload)
+	if tp.compresser != nil {
+		payload, err = tp.compresser.Compress(payload)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if tp.encrypter != nil {
+		payload, err = tp.encrypter.Encrypt(payload)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return payload, nil
 }
 
 func (tp *transport) decode(data []byte) (*codec.Variable, error) {
-	if tp.encoder != nil {
+	if tp.encrypter != nil {
 		var err error
-		data, err = tp.encoder.Decrypt(data)
+		data, err = tp.encrypter.Decrypt(data)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if tp.compresser != nil {
+		var err error
+		data, err = tp.compresser.Decompress(data)
 		if err != nil {
 			return nil, err
 		}

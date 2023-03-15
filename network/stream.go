@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 )
 
-var errStreamClosed = errors.New("stream closed")
-var errClosedByRemote = errors.New("closed by remote")
+var errStreamClosed = errors.New("network: stream closed")
+var errClosedByRemote = errors.New("network: closed by remote")
 
 // Stream stream
 type Stream struct {
@@ -22,12 +22,13 @@ type Stream struct {
 	closed atomic.Bool
 	chRead chan []byte
 	// runtime
+	err    error
 	ctx    context.Context
-	cancel context.CancelCauseFunc
+	cancel context.CancelFunc
 }
 
 func newStream(parent *Conn, id uint32) *Stream {
-	ctx, cancel := context.WithCancelCause(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Stream{
 		parent: parent,
 		id:     id & 0xffffff,
@@ -50,7 +51,8 @@ func (s *Stream) Close() error {
 
 func (s *Stream) onClose(err error) {
 	s.closed.Store(true)
-	s.cancel(err)
+	s.err = err
+	s.cancel()
 	sequence := s.parent.sequence.Add(1)
 	binary.Write(s.parent.conn, binary.BigEndian, header{
 		Size:     0,
@@ -75,7 +77,7 @@ func (s *Stream) Read(p []byte) (int, error) {
 		}
 		return copy(p, data), nil
 	case <-s.ctx.Done():
-		return 0, s.ctx.Err()
+		return 0, s.err
 	}
 }
 
@@ -96,15 +98,15 @@ func (s *Stream) Write(p []byte) (int, error) {
 		Flag:     s.ID() | flagStreamData,
 	})
 	if err != nil {
-		return 0, fmt.Errorf("build packet header[%d]: %v", sequence, err)
+		return 0, fmt.Errorf("network: build packet header[%d]: %v", sequence, err)
 	}
 	_, err = io.Copy(&buf, bytes.NewReader(p))
 	if err != nil {
-		return 0, fmt.Errorf("build packet payload[%d]: %v", sequence, err)
+		return 0, fmt.Errorf("network: build packet payload[%d]: %v", sequence, err)
 	}
 	_, err = s.parent.conn.Write(buf.Bytes())
 	if err != nil {
-		return 0, fmt.Errorf("write packet[%d]: %v", sequence, err)
+		return 0, fmt.Errorf("network: write packet[%d]: %v", sequence, err)
 	}
 	return len(p), nil
 }

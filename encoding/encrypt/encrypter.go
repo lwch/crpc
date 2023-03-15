@@ -10,23 +10,23 @@ import (
 	"hash/crc32"
 )
 
-var errInvalidEncryptChecksum = errors.New("invalid encrypt checksum")
-var errInvalidBlockSize = errors.New("invalid block size")
+var errInvalidChecksum = errors.New("encrypt: invalid checksum")
+var errInvalidBlockSize = errors.New("encrypt: invalid block size")
 
 // Method encrypt method
 type Method byte
 
 const (
-	// EncryptAes aes method
-	EncryptAes Method = 1 << 0
-	// EncryptDes des method
-	EncryptDes Method = 1 << 1
+	// Aes aes method
+	Aes Method = 1 << 0
+	// Des des method
+	Des Method = 1 << 1
 )
 
 type padFunc func([]byte) []byte
 
-// Encoder encoder
-type Encoder struct {
+// Encrypter encrypter
+type Encrypter struct {
 	block cipher.Block
 	iv    []byte
 	pad   padFunc
@@ -56,14 +56,14 @@ func repeat(str string, limit int) string {
 	return str
 }
 
-// NewEncoder new encoder
-func NewEncoder(m Method, key string) *Encoder {
+// New create new encrypter
+func New(m Method, key string) *Encrypter {
 	var block cipher.Block
 	var iv []byte
 	var err error
 	var pad padFunc
 	switch m {
-	case EncryptAes:
+	case Aes:
 		key = repeat(key, 32+aes.BlockSize)
 		block, err = aes.NewCipher([]byte(key[:32]))
 		if err != nil {
@@ -71,13 +71,16 @@ func NewEncoder(m Method, key string) *Encoder {
 		}
 		iv = []byte(key[32 : 32+aes.BlockSize])
 		pad = makePad(aes.BlockSize)
-	case EncryptDes:
+	case Des:
 		key = repeat(key, 24+des.BlockSize)
 		block, err = des.NewTripleDESCipher([]byte(key[:24]))
+		if err != nil {
+			return nil
+		}
 		iv = []byte(key[24 : 24+des.BlockSize])
 		pad = makePad(des.BlockSize)
 	}
-	return &Encoder{
+	return &Encrypter{
 		block: block,
 		iv:    iv,
 		pad:   pad,
@@ -86,17 +89,17 @@ func NewEncoder(m Method, key string) *Encoder {
 }
 
 // Encrypt encrypt data
-func (enc *Encoder) Encrypt(src []byte) []byte {
+func (enc *Encrypter) Encrypt(src []byte) ([]byte, error) {
 	bm := cipher.NewCBCEncrypter(enc.block, enc.iv)
 	src = binary.BigEndian.AppendUint32(src, crc32.ChecksumIEEE(src))
 	src = enc.pad(src)
 	dst := make([]byte, len(src))
 	bm.CryptBlocks(dst, src)
-	return dst
+	return dst, nil
 }
 
 // Decrypt decrypt data
-func (enc *Encoder) Decrypt(src []byte) ([]byte, error) {
+func (enc *Encrypter) Decrypt(src []byte) ([]byte, error) {
 	bm := cipher.NewCBCDecrypter(enc.block, enc.iv)
 	if len(src)%bm.BlockSize() != 0 {
 		return nil, errInvalidBlockSize
@@ -107,7 +110,7 @@ func (enc *Encoder) Decrypt(src []byte) ([]byte, error) {
 	sum := binary.BigEndian.Uint32(dst[len(dst)-4:])
 	dst = dst[:len(dst)-4]
 	if crc32.ChecksumIEEE(dst) != sum {
-		return nil, errInvalidEncryptChecksum
+		return nil, errInvalidChecksum
 	}
 	return dst, nil
 }

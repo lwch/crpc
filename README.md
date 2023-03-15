@@ -1,22 +1,29 @@
 # crpc
 
+[![crpc](https://github.com/lwch/crpc/actions/workflows/build.yml/badge.svg)](https://github.com/lwch/crpc/actions/workflows/build.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/lwch/crpc)](https://goreportcard.com/report/github.com/lwch/crpc)
+[![Go Reference](https://pkg.go.dev/badge/badge/github.com/lwch/crpc.svg)](https://pkg.go.dev/badge/github.com/lwch/crpc)
+[![license](https://img.shields.io/github/license/lwch/crpc)](https://opensource.org/licenses/MIT)
+
 golang rpc框架，支持以下功能：
 
 1. 流式传输
 2. 数据加密
-3. 结构序列化
+3. 数据压缩
+4. 结构序列化
 
 ## 分层设计
 
 在crpc框架使用以下的多层设计，每一个层次有其相应的数据结构
 
-    +------------+---------+----------+
-    | data frame | encrypt | encoding |
-    +------------+---------+----------+
+    +------------+-------------------+--------------------+-------+
+    | data frame | encrypt(optional) | compress(optional) | codec |
+    +------------+-------------------+--------------------+-------+
 
 - `data frame`: 数据帧，最底层数据结构，直接面向于tcp协议
-- `encrypt`: 数据加密层，目前仅支持aes和des加密算法
-- `encoding`: 数据序列化层，目前支持`[]byte`、`http.Request`、`http.Response`三种数据结构的序列化
+- `encrypt`: 数据加密层，目前已支持aes和des加密算法
+- `compress`: 数据压缩层，目前已支持gzip和zstd压缩算法
+- `codec`: 数据序列化层，目前支持`[]byte`、`http.Request`、`http.Response`三种数据结构的序列化
 
 ### 数据帧(network)
 
@@ -34,7 +41,7 @@ golang rpc框架，支持以下功能：
 
 以上内容括号中的数字表示比特位，其中每一个比特位代表一个标志位，互相之间是互斥关系，目前仅使用了`Flag`字段第一字节的高6位，由于Stream ID字段仅有3字节，因此crpc中仅支持16777215个stream`同时`传输数据
 
-### 数据加密层(encrypt)
+### 数据加密层(encoding/encrypt)
 
 数据加密层用于将原始数据进行加密，在数据加密前会将原始数据的crc32校验码添加到数据尾部作为解密后的校验依据，其封装格式如下：
 
@@ -42,12 +49,20 @@ golang rpc框架，支持以下功能：
     + Src Data | Crc32(4) |
     +----------+----------+
 
-- `aes`加密算法: aes加密算法使用256位长度密钥以及16字节的iv进行CBC算法加密
+- `aes`加密算法: aes加密算法使用32字节长度密钥以及16字节的iv进行CBC算法加密
 - `des`加密算法: des加密算法使用24字节长度密钥以及8字节的iv进行TripleDES算法加密
 
 当给定密钥长度不足时，底层会重复多次密钥内容以保证加密运算的进行
 
-### 数据编码层(codec)
+### 数据压缩层(encoding/compress)
+
+数据压缩层用于将原始数据进行压缩，在数据压缩前会将原始数据的crc32校验码添加到数据尾部作为解压后的校验依据，其封装格式如下：
+
+    +----------+----------+
+    + Src Data | Crc32(4) |
+    +----------+----------+
+
+### 数据编码层(encoding/codec)
 
 数据编码层用于描述原始数据类型，主要作用于数据的序列化和反序列化过程，数据结构如下：
 
@@ -64,7 +79,7 @@ golang rpc框架，支持以下功能：
 
 #### http请求
 
-grpc框架底层使用`X-Request-Id`字段进行request与response的关联，因此在使用过程中请勿使用该字段。
+grpc框架底层使用`X-Crpc-Request-Id`字段进行request与response的关联，因此在使用过程中请勿使用该字段。
 
 ## 示例
 
