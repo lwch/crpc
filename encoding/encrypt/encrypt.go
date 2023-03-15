@@ -25,8 +25,8 @@ const (
 
 type padFunc func([]byte) []byte
 
-// Encoder encoder
-type Encoder struct {
+// Encrypter encrypter
+type Encrypter struct {
 	block cipher.Block
 	iv    []byte
 	pad   padFunc
@@ -56,8 +56,8 @@ func repeat(str string, limit int) string {
 	return str
 }
 
-// NewEncoder new encoder
-func NewEncoder(m Method, key string) *Encoder {
+// NewEncrypter create new encrypter
+func NewEncrypter(m Method, key string) *Encrypter {
 	var block cipher.Block
 	var iv []byte
 	var err error
@@ -80,7 +80,7 @@ func NewEncoder(m Method, key string) *Encoder {
 		iv = []byte(key[24 : 24+des.BlockSize])
 		pad = makePad(des.BlockSize)
 	}
-	return &Encoder{
+	return &Encrypter{
 		block: block,
 		iv:    iv,
 		pad:   pad,
@@ -89,7 +89,7 @@ func NewEncoder(m Method, key string) *Encoder {
 }
 
 // Encrypt encrypt data
-func (enc *Encoder) Encrypt(src []byte) ([]byte, error) {
+func (enc *Encrypter) Encrypt(src []byte) ([]byte, error) {
 	bm := cipher.NewCBCEncrypter(enc.block, enc.iv)
 	src = binary.BigEndian.AppendUint32(src, crc32.ChecksumIEEE(src))
 	src = enc.pad(src)
@@ -99,7 +99,7 @@ func (enc *Encoder) Encrypt(src []byte) ([]byte, error) {
 }
 
 // Decrypt decrypt data
-func (enc *Encoder) Decrypt(src []byte) ([]byte, error) {
+func (enc *Encrypter) Decrypt(src []byte) ([]byte, error) {
 	bm := cipher.NewCBCDecrypter(enc.block, enc.iv)
 	if len(src)%bm.BlockSize() != 0 {
 		return nil, errInvalidBlockSize
