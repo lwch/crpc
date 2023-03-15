@@ -44,6 +44,7 @@ type Conn struct {
 	mStreams       sync.RWMutex
 	chStreamOpened chan *Stream
 	// runtime
+	err error
 	ctx context.Context
 }
 
@@ -67,7 +68,7 @@ type header struct {
 
 // New new connection
 func New(conn net.Conn) *Conn {
-	ctx, cancel := context.WithCancelCause(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	ret := &Conn{
 		conn:           conn,
 		chRead:         make(chan []byte, 10000),
@@ -89,7 +90,7 @@ func (c *Conn) Close() error {
 func (c *Conn) AcceptStream() (*Stream, error) {
 	select {
 	case <-c.ctx.Done():
-		return nil, c.ctx.Err()
+		return nil, c.err
 	case stream := <-c.chStreamOpened:
 		return stream, nil
 	}
@@ -112,7 +113,7 @@ func (c *Conn) OpenStream(timeout time.Duration) (*Stream, error) {
 	case <-after:
 		return nil, errOpenStreamTimeout
 	case <-c.ctx.Done():
-		return nil, c.ctx.Err()
+		return nil, c.err
 	case stream := <-c.chStreamOpened:
 		return stream, nil
 	}
@@ -149,7 +150,7 @@ func (c *Conn) Write(p []byte) (int, error) {
 func (c *Conn) Read(p []byte) (int, error) {
 	select {
 	case <-c.ctx.Done():
-		return 0, c.ctx.Err()
+		return 0, c.err
 	case data := <-c.chRead:
 		if len(p) < len(data) {
 			return 0, errBufferTooShort
@@ -202,9 +203,12 @@ func (c *Conn) onClose(err error) {
 	}
 }
 
-func (c *Conn) loopRead(cancel context.CancelCauseFunc) {
+func (c *Conn) loopRead(cancel context.CancelFunc) {
 	var err error
-	defer cancel(err)
+	defer func() {
+		c.err = err
+		cancel()
+	}()
 	defer c.onClose(err)
 	buf := make([]byte, math.MaxUint16)
 	for {
