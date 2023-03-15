@@ -2,6 +2,7 @@
 
 [![crpc](https://github.com/lwch/crpc/actions/workflows/build.yml/badge.svg)](https://github.com/lwch/crpc/actions/workflows/build.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/lwch/crpc)](https://goreportcard.com/report/github.com/lwch/crpc)
+[![Go Reference](https://pkg.go.dev/badge/badge/github.com/lwch/crpc.svg)](https://pkg.go.dev/badge/github.com/lwch/crpc)
 [![license](https://img.shields.io/github/license/lwch/crpc)](https://opensource.org/licenses/MIT)
 
 golang rpc框架，支持以下功能：
@@ -48,10 +49,18 @@ golang rpc框架，支持以下功能：
     + Src Data | Crc32(4) |
     +----------+----------+
 
-- `aes`加密算法: aes加密算法使用256位长度密钥以及16字节的iv进行CBC算法加密
+- `aes`加密算法: aes加密算法使用32字节长度密钥以及16字节的iv进行CBC算法加密
 - `des`加密算法: des加密算法使用24字节长度密钥以及8字节的iv进行TripleDES算法加密
 
 当给定密钥长度不足时，底层会重复多次密钥内容以保证加密运算的进行
+
+### 数据压缩层(encoding/compress)
+
+数据压缩层用于将原始数据进行压缩，在数据压缩前会将原始数据的crc32校验码添加到数据尾部作为解压后的校验依据，其封装格式如下：
+
+    +----------+----------+
+    + Src Data | Crc32(4) |
+    +----------+----------+
 
 ### 数据编码层(encoding/codec)
 

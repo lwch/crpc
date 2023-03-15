@@ -10,7 +10,7 @@ import (
 	"hash/crc32"
 )
 
-var errInvalidEncryptChecksum = errors.New("encrypt: invalid encrypt checksum")
+var errInvalidChecksum = errors.New("encrypt: invalid checksum")
 var errInvalidBlockSize = errors.New("encrypt: invalid block size")
 
 // Method encrypt method
@@ -110,7 +110,7 @@ func (enc *Encrypter) Decrypt(src []byte) ([]byte, error) {
 	sum := binary.BigEndian.Uint32(dst[len(dst)-4:])
 	dst = dst[:len(dst)-4]
 	if crc32.ChecksumIEEE(dst) != sum {
-		return nil, errInvalidEncryptChecksum
+		return nil, errInvalidChecksum
 	}
 	return dst, nil
 }

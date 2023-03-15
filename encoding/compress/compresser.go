@@ -3,14 +3,17 @@ package compress
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/binary"
 	"errors"
+	"hash/crc32"
 	"io"
 	"sync"
 
 	"github.com/klauspost/compress/zstd"
 )
 
-var errNoDecompresser = errors.New("no decompresser")
+var errNoDecompresser = errors.New("compress: no decompresser")
+var errInvalidChecksum = errors.New("compress: invalid checksum")
 
 // Method compress method
 type Method byte
@@ -107,6 +110,7 @@ func (cp *Compresser) Compress(data []byte) ([]byte, error) {
 		w = obj.(compresser)
 	}
 	defer pool.Put(w)
+	data = binary.BigEndian.AppendUint32(data, crc32.ChecksumIEEE(data))
 	var buf bytes.Buffer
 	w.Reset(&buf)
 	_, err := io.Copy(w, bytes.NewReader(data))
@@ -132,7 +136,13 @@ func (cp *Compresser) Decompress(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	data = buf.Bytes()
+	sum := binary.BigEndian.Uint32(data[len(data)-4:])
+	data = data[:len(data)-4]
+	if crc32.ChecksumIEEE(data) != sum {
+		return nil, errInvalidChecksum
+	}
+	return data, nil
 }
 
 // SetLevel set compress level
