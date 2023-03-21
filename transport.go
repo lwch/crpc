@@ -41,6 +41,7 @@ type transport struct {
 }
 
 func new(conn net.Conn) *transport {
+	conn.SetDeadline(time.Time{}) // no timeout
 	ctx, cancel := context.WithCancel(context.Background())
 	t := &transport{
 		conn:       network.New(conn),
