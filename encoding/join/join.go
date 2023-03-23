@@ -38,5 +38,7 @@ func (j *Joiner) Marshal() ([]byte, error) {
 	if _, err := j.buf.Write(j.payload.Marshal()); err != nil {
 		return nil, err
 	}
-	return j.buf.Bytes(), nil
+	cpy := make([]byte, j.buf.Len())
+	copy(cpy, j.buf.Bytes())
+	return cpy, nil
 }
