@@ -20,9 +20,9 @@ type Method byte
 
 const (
 	// Gzip gzip method
-	Gzip Method = 1 << 0
+	Gzip Method = iota
 	// Zstd zstd method
-	Zstd Method = 1 << 1
+	Zstd
 )
 
 type compresser interface {
