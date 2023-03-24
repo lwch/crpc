@@ -69,7 +69,10 @@ func dial(addr string, retry int) (net.Conn, error) {
 
 // Close close client
 func (cli *Client) Close() error {
-	err := cli.tp.Close()
+	var err error
+	if cli.tp != nil {
+		err = cli.tp.Close()
+	}
 	cli.cancel()
 	return err
 }

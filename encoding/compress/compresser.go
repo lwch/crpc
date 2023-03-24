@@ -20,14 +20,15 @@ type Method byte
 
 const (
 	// Gzip gzip method
-	Gzip Method = 1 << 0
+	Gzip Method = iota
 	// Zstd zstd method
-	Zstd Method = 1 << 1
+	Zstd
 )
 
 type compresser interface {
 	io.Writer
 	Reset(io.Writer)
+	Close() error
 }
 
 type decompresser interface {
@@ -38,6 +39,7 @@ type decompresser interface {
 // Compresser compresser
 type Compresser struct {
 	nc               func(int) (compresser, error)
+	nd               func(io.Reader) (io.Reader, error)
 	level            int
 	poolCompresser   map[int]*sync.Pool
 	mPoolCompresser  sync.RWMutex
@@ -50,15 +52,9 @@ func New(m Method) *Compresser {
 	case Gzip:
 		cp := &Compresser{
 			nc:             newGzipCompresser,
+			nd:             newGzipDecompresser,
 			level:          gzip.DefaultCompression,
 			poolCompresser: make(map[int]*sync.Pool),
-		}
-		cp.poolDecompresser.New = func() any {
-			decompresser, err := newGzipDecompresser()
-			if err != nil {
-				return nil
-			}
-			return decompresser
 		}
 		return cp
 	case Zstd:
@@ -83,26 +79,27 @@ func New(m Method) *Compresser {
 // Compress compress func
 func (cp *Compresser) Compress(data []byte) ([]byte, error) {
 	cp.mPoolCompresser.RLock()
-	pool := cp.poolCompresser[cp.level]
+	level := cp.level
+	pool := cp.poolCompresser[level]
 	cp.mPoolCompresser.RUnlock()
 	if pool == nil {
 		pool = new(sync.Pool)
 		pool.New = func() any {
-			compresser, err := cp.nc(cp.level)
+			compresser, err := cp.nc(level)
 			if err != nil {
 				return nil
 			}
 			return compresser
 		}
 		cp.mPoolCompresser.Lock()
-		cp.poolCompresser[cp.level] = pool
+		cp.poolCompresser[level] = pool
 		cp.mPoolCompresser.Unlock()
 	}
 	obj := pool.Get()
 	var w compresser
 	if obj == nil {
 		var err error
-		w, err = cp.nc(cp.level)
+		w, err = cp.nc(level)
 		if err != nil {
 			return nil, err
 		}
@@ -117,6 +114,10 @@ func (cp *Compresser) Compress(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = w.Close()
+	if err != nil {
+		return nil, err
+	}
 	return buf.Bytes(), nil
 }
 
@@ -124,19 +125,25 @@ func (cp *Compresser) Compress(data []byte) ([]byte, error) {
 func (cp *Compresser) Decompress(data []byte) ([]byte, error) {
 	obj := cp.poolDecompresser.Get()
 	if obj == nil {
-		return nil, errNoDecompresser
+		if cp.nd == nil {
+			return nil, errNoDecompresser
+		}
+		var err error
+		obj, err = cp.nd(bytes.NewReader(data))
+		if err != nil {
+			return nil, err
+		}
 	}
+	defer cp.poolDecompresser.Put(obj)
 	r := obj.(decompresser)
 	err := r.Reset(bytes.NewReader(data))
 	if err != nil {
 		return nil, err
 	}
-	var buf bytes.Buffer
-	_, err = io.Copy(&buf, r)
+	data, err = io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
-	data = buf.Bytes()
 	sum := binary.BigEndian.Uint32(data[len(data)-4:])
 	data = data[:len(data)-4]
 	if crc32.ChecksumIEEE(data) != sum {

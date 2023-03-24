@@ -9,6 +9,6 @@ func newGzipCompresser(level int) (compresser, error) {
 	return gzip.NewWriterLevel(io.Discard, level)
 }
 
-func newGzipDecompresser() (io.Reader, error) {
-	return gzip.NewReader(nil)
+func newGzipDecompresser(r io.Reader) (io.Reader, error) {
+	return gzip.NewReader(r)
 }

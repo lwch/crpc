@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/lwch/crpc/encoding"
-	"github.com/lwch/crpc/encoding/join"
+	"github.com/lwch/crpc/internal/join"
 )
 
 var errUnsupportedType = errors.New("codec: unsupported type")

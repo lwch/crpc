@@ -18,9 +18,9 @@ type Method byte
 
 const (
 	// Aes aes method
-	Aes Method = 1 << 0
+	Aes Method = iota
 	// Des des method
-	Des Method = 1 << 1
+	Des
 )
 
 type padFunc func([]byte) []byte
