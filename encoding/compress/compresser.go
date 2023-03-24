@@ -28,6 +28,7 @@ const (
 type compresser interface {
 	io.Writer
 	Reset(io.Writer)
+	Flush() error
 }
 
 type decompresser interface {
@@ -117,6 +118,10 @@ func (cp *Compresser) Compress(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = w.Flush()
+	if err != nil {
+		return nil, err
+	}
 	return buf.Bytes(), nil
 }
 
@@ -131,12 +136,7 @@ func (cp *Compresser) Decompress(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	var buf bytes.Buffer
-	_, err = io.Copy(&buf, r)
-	if err != nil {
-		return nil, err
-	}
-	data = buf.Bytes()
+	data, err = io.ReadAll(r)
 	sum := binary.BigEndian.Uint32(data[len(data)-4:])
 	data = data[:len(data)-4]
 	if crc32.ChecksumIEEE(data) != sum {
