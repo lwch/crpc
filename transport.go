@@ -55,7 +55,7 @@ func new(conn net.Conn) *transport {
 		cancel: cancel,
 	}
 	t.varPool.New = func() any {
-		return &codec.Variable{}
+		return codec.NewVariable()
 	}
 	go t.keepalive()
 	return t

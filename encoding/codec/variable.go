@@ -13,6 +13,16 @@ type Variable struct {
 	bufReader *bufio.Reader
 }
 
+// NewVariable create variable
+func NewVariable() *Variable {
+	return &Variable{bufReader: new(bufio.Reader)}
+}
+
+// Reset reset variable
+func (v *Variable) Reset() {
+	v.raw.Reset()
+}
+
 // Type data type
 func (v *Variable) Type() DataType {
 	return v.t
