@@ -154,23 +154,13 @@ func (tp *transport) parse(data []byte) error {
 		logging.Error("decode: %v", err)
 		return err
 	}
-	switch payload.Type() {
-	case codec.TypeHTTPRequest:
-		req, err := payload.ToRequest()
-		if err != nil {
-			logging.Error("to request: %v", err)
-			return err
-		}
-		str := req.Header.Get(keyRequestID)
+	switch v := payload.(type) {
+	case *http.Request:
+		str := v.Header.Get(keyRequestID)
 		seq, _ := strconv.ParseUint(str, 10, 64)
-		go tp.handleRequest(req, seq)
-	case codec.TypeHTTPResponse:
-		rep, err := payload.ToResponse()
-		if err != nil {
-			logging.Error("to response: %v", err)
-			return err
-		}
-		str := rep.Header.Get(keyRequestID)
+		go tp.handleRequest(v, seq)
+	case *http.Response:
+		str := v.Header.Get(keyRequestID)
 		seq, _ := strconv.ParseUint(str, 10, 64)
 		tp.mResponse.RLock()
 		ch := tp.onResponse[seq]
@@ -185,7 +175,7 @@ func (tp *transport) parse(data []byte) error {
 			}()
 			ch <- rep
 		}
-		send(ch, rep)
+		send(ch, v)
 	default:
 		return errDataType
 	}

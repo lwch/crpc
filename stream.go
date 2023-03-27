@@ -1,7 +1,6 @@
 package crpc
 
 import (
-	"github.com/lwch/crpc/encoding/codec"
 	"github.com/lwch/crpc/network"
 )
 
@@ -64,10 +63,9 @@ func (s *Stream) Read(p []byte) (int, error) {
 			return 0, err
 		}
 	}
-	var vb codec.Variable
-	err = s.parent.codec.Unmarshal(buf, &vb)
+	n, err = s.parent.codec.Unmarshal(buf, &p)
 	if err != nil {
 		return 0, err
 	}
-	return copy(p, vb.Bytes()), nil
+	return n, nil
 }
