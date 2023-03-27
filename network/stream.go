@@ -12,8 +12,11 @@ import (
 	"sync/atomic"
 )
 
-var errStreamClosed = errors.New("network: stream closed")
-var errClosedByRemote = errors.New("network: closed by remote")
+// ErrStreamClosed stream closed error
+var ErrStreamClosed = errors.New("network: stream closed")
+
+// ErrClosedByRemote closed by remote error
+var ErrClosedByRemote = errors.New("network: closed by remote")
 
 // Stream stream
 type Stream struct {
@@ -68,7 +71,7 @@ func (s *Stream) onClose(err error) {
 // Read read data
 func (s *Stream) Read(p []byte) (int, error) {
 	if s.closed.Load() {
-		return 0, errStreamClosed
+		return 0, ErrStreamClosed
 	}
 	select {
 	case data := <-s.chRead:
@@ -84,7 +87,7 @@ func (s *Stream) Read(p []byte) (int, error) {
 // Write write data
 func (s *Stream) Write(p []byte) (int, error) {
 	if s.closed.Load() {
-		return 0, errStreamClosed
+		return 0, ErrStreamClosed
 	}
 	if len(p) > math.MaxUint16 {
 		return 0, errTooLarge
@@ -144,7 +147,7 @@ func (c *Conn) handleCloseStream(flag uint32) error {
 	if s == nil {
 		return errStreamNotFound
 	}
-	s.onClose(errClosedByRemote)
+	s.onClose(ErrClosedByRemote)
 	return nil
 }
 
