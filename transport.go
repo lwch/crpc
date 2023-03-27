@@ -36,7 +36,6 @@ type transport struct {
 	onResponse map[uint64]chan *http.Response
 	mResponse  sync.RWMutex
 	onRequest  RequestHandlerFunc
-	varPool    sync.Pool
 	// runtime
 	err    error
 	ctx    context.Context
@@ -55,9 +54,6 @@ func new(conn net.Conn) *transport {
 		},
 		ctx:    ctx,
 		cancel: cancel,
-	}
-	t.varPool.New = func() any {
-		return codec.NewVariable()
 	}
 	go t.keepalive()
 	return t
@@ -153,10 +149,7 @@ func (tp *transport) Serve() error {
 }
 
 func (tp *transport) parse(data []byte) error {
-	payload := tp.varPool.Get().(*codec.Variable)
-	defer tp.varPool.Put(payload)
-	payload.Reset()
-	err := tp.decode(data, payload)
+	payload, err := tp.decode(data)
 	if err != nil {
 		logging.Error("decode: %v", err)
 		return err

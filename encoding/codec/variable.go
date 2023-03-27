@@ -15,12 +15,9 @@ type Variable struct {
 
 // NewVariable create variable
 func NewVariable() *Variable {
-	return &Variable{bufReader: new(bufio.Reader)}
-}
-
-// Reset reset variable
-func (v *Variable) Reset() {
-	v.raw.Reset()
+	v := &Variable{}
+	v.bufReader = bufio.NewReader(&v.raw)
+	return v
 }
 
 // Type data type
@@ -35,12 +32,10 @@ func (v *Variable) Bytes() []byte {
 
 // ToRequest convert to http request
 func (v *Variable) ToRequest() (*http.Request, error) {
-	v.bufReader.Reset(&v.raw)
 	return http.ReadRequest(v.bufReader)
 }
 
 // ToResponse convert to http response
 func (v *Variable) ToResponse() (*http.Response, error) {
-	v.bufReader.Reset(&v.raw)
 	return http.ReadResponse(v.bufReader, nil)
 }
