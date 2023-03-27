@@ -58,27 +58,24 @@ func (tp *transport) buildResponse(rep *http.Response, reqID uint64) ([]byte, er
 	return payload, nil
 }
 
-func (tp *transport) decode(data []byte) (*codec.Variable, error) {
+func (tp *transport) decode(data []byte, value *codec.Variable) error {
 	if tp.encrypter != nil {
 		var err error
 		data, err = tp.encrypter.Decrypt(data)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 	if tp.compresser != nil {
 		var err error
 		data, err = tp.compresser.Decompress(data)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
-	value := tp.varPool.Get().(*codec.Variable)
-	defer tp.varPool.Put(value)
-	value.Reset()
 	err := tp.codec.Unmarshal(data, value)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return value, nil
+	return nil
 }

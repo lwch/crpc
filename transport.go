@@ -22,6 +22,8 @@ import (
 // ErrTimeout timeout error
 var ErrTimeout = errors.New("transport: timeout")
 
+var errDataType = errors.New("transport: data type error")
+
 // RequestHandlerFunc request handler
 type RequestHandlerFunc func(*http.Request) (*http.Response, error)
 
@@ -142,45 +144,59 @@ func (tp *transport) Serve() error {
 			logging.Error("serve: %v", err)
 			return err
 		}
-		payload, err := tp.decode(buf[:n])
+		err := tp.parse(buf[:n])
 		if err != nil {
-			logging.Error("decode: %v", err)
+			logging.Error("parse: %v", err)
 			return err
 		}
-		switch payload.Type() {
-		case codec.TypeHTTPRequest:
-			req, err := payload.ToRequest()
-			if err != nil {
-				logging.Error("to request: %v", err)
-				return err
-			}
-			str := req.Header.Get(keyRequestID)
-			seq, _ := strconv.ParseUint(str, 10, 64)
-			go tp.handleRequest(req, seq)
-		case codec.TypeHTTPResponse:
-			rep, err := payload.ToResponse()
-			if err != nil {
-				logging.Error("to response: %v", err)
-				return err
-			}
-			str := rep.Header.Get(keyRequestID)
-			seq, _ := strconv.ParseUint(str, 10, 64)
-			tp.mResponse.RLock()
-			ch := tp.onResponse[seq]
-			tp.mResponse.RUnlock()
-			if ch == nil {
-				continue
-			}
-			// recover on closed
-			send := func(ch chan *http.Response, rep *http.Response) {
-				defer func() {
-					recover()
-				}()
-				ch <- rep
-			}
-			send(ch, rep)
-		}
 	}
+}
+
+func (tp *transport) parse(data []byte) error {
+	payload := tp.varPool.Get().(*codec.Variable)
+	defer tp.varPool.Put(payload)
+	payload.Reset()
+	err := tp.decode(data, payload)
+	if err != nil {
+		logging.Error("decode: %v", err)
+		return err
+	}
+	switch payload.Type() {
+	case codec.TypeHTTPRequest:
+		req, err := payload.ToRequest()
+		if err != nil {
+			logging.Error("to request: %v", err)
+			return err
+		}
+		str := req.Header.Get(keyRequestID)
+		seq, _ := strconv.ParseUint(str, 10, 64)
+		go tp.handleRequest(req, seq)
+	case codec.TypeHTTPResponse:
+		rep, err := payload.ToResponse()
+		if err != nil {
+			logging.Error("to response: %v", err)
+			return err
+		}
+		str := rep.Header.Get(keyRequestID)
+		seq, _ := strconv.ParseUint(str, 10, 64)
+		tp.mResponse.RLock()
+		ch := tp.onResponse[seq]
+		tp.mResponse.RUnlock()
+		if ch == nil {
+			return nil
+		}
+		// recover on closed
+		send := func(ch chan *http.Response, rep *http.Response) {
+			defer func() {
+				recover()
+			}()
+			ch <- rep
+		}
+		send(ch, rep)
+	default:
+		return errDataType
+	}
+	return nil
 }
 
 func (tp *transport) handleRequest(req *http.Request, reqID uint64) {
