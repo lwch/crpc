@@ -8,8 +8,9 @@ import (
 
 // Variable variable data
 type Variable struct {
-	t   DataType
-	raw bytes.Buffer
+	t         DataType
+	raw       bytes.Buffer
+	bufReader *bufio.Reader
 }
 
 // Type data type
@@ -24,10 +25,12 @@ func (v *Variable) Bytes() []byte {
 
 // ToRequest convert to http request
 func (v *Variable) ToRequest() (*http.Request, error) {
-	return http.ReadRequest(bufio.NewReader(&v.raw))
+	v.bufReader.Reset(&v.raw)
+	return http.ReadRequest(v.bufReader)
 }
 
 // ToResponse convert to http response
 func (v *Variable) ToResponse() (*http.Response, error) {
-	return http.ReadResponse(bufio.NewReader(&v.raw), nil)
+	v.bufReader.Reset(&v.raw)
+	return http.ReadResponse(v.bufReader, nil)
 }

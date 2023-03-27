@@ -73,10 +73,11 @@ func (tp *transport) decode(data []byte) (*codec.Variable, error) {
 			return nil, err
 		}
 	}
-	var value codec.Variable
-	err := tp.codec.Unmarshal(data, &value)
+	value := tp.varPool.Get().(*codec.Variable)
+	defer tp.varPool.Put(value)
+	err := tp.codec.Unmarshal(data, value)
 	if err != nil {
 		return nil, err
 	}
-	return &value, nil
+	return value, nil
 }

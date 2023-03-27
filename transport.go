@@ -34,6 +34,7 @@ type transport struct {
 	onResponse map[uint64]chan *http.Response
 	mResponse  sync.RWMutex
 	onRequest  RequestHandlerFunc
+	varPool    sync.Pool
 	// runtime
 	err    error
 	ctx    context.Context
@@ -52,6 +53,9 @@ func new(conn net.Conn) *transport {
 		},
 		ctx:    ctx,
 		cancel: cancel,
+	}
+	t.varPool.New = func() any {
+		return &codec.Variable{}
 	}
 	go t.keepalive()
 	return t
