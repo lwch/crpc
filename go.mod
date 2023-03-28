@@ -4,7 +4,11 @@ go 1.18
 
 require (
 	github.com/klauspost/compress v1.16.3
-	github.com/lwch/logging v0.0.0-20221013035348-e250895ebb72
+	github.com/lwch/logging v1.0.1
 )
 
-require github.com/lwch/runtime v0.0.0-20190520054850-8c97e19e0c6d // indirect
+require (
+	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/lwch/runtime v1.0.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
