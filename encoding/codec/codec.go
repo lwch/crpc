@@ -85,7 +85,6 @@ func (c *Codec) Unmarshal(data []byte, v any) (int, error) {
 	switch hdr.Type {
 	case TypeRaw:
 		if vv, ok := v.(*[]byte); ok {
-			*vv = make([]byte, len(data)-1)
 			return copy(*vv, data[1:]), nil
 		}
 		buf := make([]byte, len(data)-1)
