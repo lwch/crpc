@@ -3,8 +3,6 @@ package crpc
 import (
 	"fmt"
 	"net/http"
-
-	"github.com/lwch/crpc/encoding/codec"
 )
 
 const keyRequestID = "X-Crpc-Request-Id"
@@ -58,7 +56,7 @@ func (tp *transport) buildResponse(rep *http.Response, reqID uint64) ([]byte, er
 	return payload, nil
 }
 
-func (tp *transport) decode(data []byte) (*codec.Variable, error) {
+func (tp *transport) decode(data []byte) (any, error) {
 	if tp.encrypter != nil {
 		var err error
 		data, err = tp.encrypter.Decrypt(data)
@@ -73,10 +71,10 @@ func (tp *transport) decode(data []byte) (*codec.Variable, error) {
 			return nil, err
 		}
 	}
-	var value codec.Variable
-	err := tp.codec.Unmarshal(data, &value)
+	var value any
+	_, err := tp.codec.Unmarshal(data, &value)
 	if err != nil {
 		return nil, err
 	}
-	return &value, nil
+	return value, nil
 }
