@@ -1,9 +1,7 @@
 package main
 
 import (
-	"io"
 	"log"
-	"net/http"
 	"time"
 
 	"github.com/lwch/crpc"
@@ -24,14 +22,20 @@ func main() {
 	defer cli.Close()
 	cli.SetEncrypter(encrypt.New(encrypt.Aes, example.Key))
 	cli.SetCompresser(compress.New(compress.Gzip))
+	s, err := cli.OpenStream(time.Second)
+	assert(err)
+	defer s.Close()
+	buf := make([]byte, 1024)
 	for {
-		req, err := http.NewRequest(http.MethodGet, "http://localhost/ping", nil)
-		assert(err)
-		rep, err := cli.Call(req, time.Second)
-		assert(err)
-		data, err := io.ReadAll(rep.Body)
-		assert(err)
-		log.Printf("status_code=%d, data=%s", rep.StatusCode, string(data))
+		_, err := s.Write([]byte("ping"))
+		if err != nil {
+			return
+		}
+		n, err := s.Read(buf)
+		if err != nil {
+			return
+		}
+		log.Println(string(buf[:n]))
 		time.Sleep(time.Second)
 	}
 }

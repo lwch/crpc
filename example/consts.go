@@ -1,4 +1,4 @@
-package ping
+package example
 
 // Key encrypt key
 const Key = "crpc encrypt key"

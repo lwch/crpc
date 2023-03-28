@@ -1,10 +1,7 @@
 package main
 
 import (
-	"io"
 	"log"
-	"net/http"
-	"strings"
 
 	"github.com/lwch/crpc"
 	"github.com/lwch/crpc/encoding/compress"
@@ -16,12 +13,20 @@ func main() {
 	svr := crpc.NewServer(crpc.ServerConfig{
 		Encrypter:  encrypt.New(encrypt.Aes, example.Key),
 		Compresser: compress.New(compress.Gzip),
-		OnRequest: func(r *http.Request) (*http.Response, error) {
-			log.Println("ping recved")
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader("pong")),
-			}, nil
+		OnAccept: func(s *crpc.Stream) {
+			defer s.Close()
+			buf := make([]byte, 1024)
+			for {
+				n, err := s.Read(buf)
+				if err != nil {
+					return
+				}
+				log.Printf("%s recved", string(buf[:n]))
+				_, err = s.Write([]byte("pong"))
+				if err != nil {
+					return
+				}
+			}
 		},
 	})
 	defer svr.Close()
