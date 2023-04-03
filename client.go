@@ -58,7 +58,7 @@ func (cli *Client) SetCompresser(compresser encoding.Compresser) {
 
 func dial(addr string, retry int) (net.Conn, error) {
 	for i := 0; retry == 0 || i < retry; i++ {
-		conn, err := net.Dial("tcp", addr)
+		conn, err := net.DialTimeout("tcp", addr, 3*time.Second)
 		if err == nil {
 			return conn, nil
 		}
