@@ -76,6 +76,7 @@ golang rpc框架，支持以下功能：
 - `1`: raw data，可反序列化到[]byte
 - `2`: http request，可反序列化到http.Request
 - `3`: http response，可反序列化到http.Response
+- `4`: protobuf，可反序列化到proto.Message
 
 #### http请求
 
