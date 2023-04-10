@@ -12,6 +12,8 @@ const (
 	TypeHTTPRequest
 	// TypeHTTPResponse http response data
 	TypeHTTPResponse
+	// TypeProtobuf protobuf data
+	TypeProtobuf
 )
 
 type header struct {

@@ -12,10 +12,12 @@ import (
 
 	"github.com/lwch/crpc/encoding"
 	"github.com/lwch/crpc/internal/join"
+	"google.golang.org/protobuf/proto"
 )
 
 var errUnsupportedType = errors.New("codec: unsupported type")
 var errIsNotPointer = errors.New("codec: the specify variable is not pointer")
+var errProtoMessage = errors.New("codec: the specify variable is not proto.Message")
 
 // Codec serializer
 type Codec struct {
@@ -58,6 +60,15 @@ func (c *Codec) Marshal(v any) ([]byte, error) {
 	case []byte:
 		hdr.Type = TypeRaw
 		if _, err := io.Copy(payload, bytes.NewReader(value)); err != nil {
+			return nil, err
+		}
+	case proto.Message:
+		hdr.Type = TypeProtobuf
+		enc, err := proto.Marshal(value)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := io.Copy(payload, bytes.NewReader(enc)); err != nil {
 			return nil, err
 		}
 	default:
@@ -120,6 +131,15 @@ func (c *Codec) Unmarshal(data []byte, v any) (int, error) {
 			return 0, err
 		}
 		vv.Elem().Set(reflect.ValueOf(rep))
+		return 0, nil
+	case TypeProtobuf:
+		msg, ok := v.(proto.Message)
+		if !ok {
+			return 0, errProtoMessage
+		}
+		if err := proto.Unmarshal(data[1:], msg); err != nil {
+			return 0, err
+		}
 		return 0, nil
 	}
 	return 0, errUnsupportedType
