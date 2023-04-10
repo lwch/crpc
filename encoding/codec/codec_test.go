@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/lwch/crpc/test_data/pb"
 )
 
 func TestRequest(t *testing.T) {
@@ -129,5 +131,35 @@ func TestBytes(t *testing.T) {
 	}
 	if string(data) != string(newBuf3) {
 		t.Fatal("invalid bytes")
+	}
+}
+
+func TestProtobuf(t *testing.T) {
+	c := New()
+	data := pb.Request{
+		Id:  1,
+		Uri: "/ping",
+		Args: map[string]string{
+			"key": "value",
+		},
+	}
+	buf, err := c.Marshal(&data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var newReq pb.Request
+	_, err = c.Unmarshal(buf, &newReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data.Id != newReq.Id {
+		t.Fatal("invalid id")
+	}
+	if data.Uri != newReq.Uri {
+		t.Fatal("invalid uri")
+	}
+	if data.Args["key"] != newReq.Args["key"] {
+		t.Fatal("invalid args")
 	}
 }
