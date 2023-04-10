@@ -3,6 +3,8 @@ github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkp
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
 github.com/klauspost/compress v1.16.3 h1:XuJt9zzcnaz6a16/OU53ZjWp/v7/42WcR5t2a0PcNQY=
 github.com/klauspost/compress v1.16.3/go.mod h1:ntbaceVETuRiXiv4DpjP66DpAtAGkEQskQzEyD//IeE=
+github.com/klauspost/compress v1.16.4 h1:91KN02FnsOYhuunwU4ssRe8lc2JosWmizWa91B5v1PU=
+github.com/klauspost/compress v1.16.4/go.mod h1:ntbaceVETuRiXiv4DpjP66DpAtAGkEQskQzEyD//IeE=
 github.com/lwch/logging v1.0.1 h1:5v3XR5jaad/yuJsaC7OY8BfhHGHLT/pscc3iAVQTaKk=
 github.com/lwch/logging v1.0.1/go.mod h1:hiA9neZf+38gqBOAselhBL3NRz00+dr8d6vrHh8BJ88=
 github.com/lwch/runtime v1.0.0 h1:siMQ16oBQ7Kx+M0KnUrAhRe0j8I493zfIqmII0r2wRc=
