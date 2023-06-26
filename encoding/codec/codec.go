@@ -68,9 +68,9 @@ func (c *Codec) Unmarshal(data []byte, v any) (int, error) {
 	case TypeRaw:
 		return c.unmarshalRaw(r, v, len(data)-1)
 	case TypeHTTPRequest:
-		return c.unmarshalHttpRequest(r, v)
+		return c.unmarshalHTTPRequest(r, v)
 	case TypeHTTPResponse:
-		return c.unmarshalHttpResponse(r, v)
+		return c.unmarshalHTTPResponse(r, v)
 	case TypeProtobuf:
 		return c.unmarshalProtoMessage(r, v)
 	default:
