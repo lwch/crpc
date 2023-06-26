@@ -10,7 +10,10 @@ golang rpc框架，支持以下功能：
 1. 流式传输
 2. 数据加密
 3. 数据压缩
-4. 结构序列化
+4. 结构序列化，已支持数据类型：
+    - []byte
+    - http.Request, http.Response
+    - proto.Message
 
 ## 分层设计
 

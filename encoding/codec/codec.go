@@ -1,11 +1,9 @@
 package codec
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"io"
 	"net/http"
 	"reflect"
 	"sync"
@@ -39,46 +37,18 @@ func New() encoding.Codec {
 
 // Marshal serialize data
 func (c *Codec) Marshal(v any) ([]byte, error) {
-	type writer interface {
-		Write(io.Writer) error
-	}
-	var hdr header
-	payload := c.bufPool.Get().(*join.BytesBuffer)
-	defer c.bufPool.Put(payload)
-	payload.Reset()
 	switch value := v.(type) {
-	case http.Request, *http.Request:
-		hdr.Type = TypeHTTPRequest
-		if err := v.(writer).Write(payload); err != nil {
-			return nil, err
-		}
-	case http.Response, *http.Response:
-		hdr.Type = TypeHTTPResponse
-		if err := v.(writer).Write(payload); err != nil {
-			return nil, err
-		}
 	case []byte:
-		hdr.Type = TypeRaw
-		if _, err := io.Copy(payload, bytes.NewReader(value)); err != nil {
-			return nil, err
-		}
+		return c.marshalRaw(value)
+	case http.Request, *http.Request:
+		return c.marshalHTTPRequest(value)
+	case http.Response, *http.Response:
+		return c.marshalHTTPResponse(value)
 	case proto.Message:
-		hdr.Type = TypeProtobuf
-		enc, err := proto.Marshal(value)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := io.Copy(payload, bytes.NewReader(enc)); err != nil {
-			return nil, err
-		}
+		return c.marshalProtoMessage(value)
 	default:
 		return nil, errUnsupportedType
 	}
-	joiner := c.joinPool.Get().(*join.Joiner)
-	defer c.joinPool.Put(joiner)
-	joiner.SetHeader(&hdr)
-	joiner.SetPayload(payload)
-	return joiner.Marshal()
 }
 
 // Unmarshal deserialize data
@@ -93,54 +63,17 @@ func (c *Codec) Unmarshal(data []byte, v any) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	switch hdr.Type {
 	case TypeRaw:
-		if vv, ok := v.(*[]byte); ok {
-			return copy(*vv, data[1:]), nil
-		}
-		buf := make([]byte, len(data)-1)
-		n := copy(buf, data[1:])
-		vv.Elem().Set(reflect.ValueOf(buf))
-		return n, nil
+		return c.unmarshalRaw(r, v, len(data)-1)
 	case TypeHTTPRequest:
-		if req, ok := v.(*http.Request); ok {
-			v, err := http.ReadRequest(bufio.NewReader(r))
-			if err != nil {
-				return 0, err
-			}
-			*req = *v
-			return 0, nil
-		}
-		req, err := http.ReadRequest(bufio.NewReader(r))
-		if err != nil {
-			return 0, err
-		}
-		vv.Elem().Set(reflect.ValueOf(req))
-		return 0, nil
+		return c.unmarshalHTTPRequest(r, v)
 	case TypeHTTPResponse:
-		if rep, ok := v.(*http.Response); ok {
-			v, err := http.ReadResponse(bufio.NewReader(r), nil)
-			if err != nil {
-				return 0, err
-			}
-			*rep = *v
-			return 0, nil
-		}
-		rep, err := http.ReadResponse(bufio.NewReader(r), nil)
-		if err != nil {
-			return 0, err
-		}
-		vv.Elem().Set(reflect.ValueOf(rep))
-		return 0, nil
+		return c.unmarshalHTTPResponse(r, v)
 	case TypeProtobuf:
-		msg, ok := v.(proto.Message)
-		if !ok {
-			return 0, errProtoMessage
-		}
-		if err := proto.Unmarshal(data[1:], msg); err != nil {
-			return 0, err
-		}
-		return 0, nil
+		return c.unmarshalProtoMessage(r, v)
+	default:
+		return 0, errUnsupportedType
 	}
-	return 0, errUnsupportedType
 }
