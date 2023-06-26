@@ -41,9 +41,9 @@ func (c *Codec) Marshal(v any) ([]byte, error) {
 	case []byte:
 		return c.marshalRaw(value)
 	case http.Request, *http.Request:
-		return c.marshalHttpRequest(value)
+		return c.marshalHTTPRequest(value)
 	case http.Response, *http.Response:
-		return c.marshalHttpResponse(value)
+		return c.marshalHTTPResponse(value)
 	case proto.Message:
 		return c.marshalProtoMessage(value)
 	default:

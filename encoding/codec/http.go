@@ -9,7 +9,7 @@ import (
 	"github.com/lwch/crpc/internal/join"
 )
 
-func (c *Codec) marshalHttpRequest(v any) ([]byte, error) {
+func (c *Codec) marshalHTTPRequest(v any) ([]byte, error) {
 	type writer interface {
 		Write(io.Writer) error
 	}
@@ -28,7 +28,7 @@ func (c *Codec) marshalHttpRequest(v any) ([]byte, error) {
 	return joiner.Marshal()
 }
 
-func (c *Codec) marshalHttpResponse(v any) ([]byte, error) {
+func (c *Codec) marshalHTTPResponse(v any) ([]byte, error) {
 	type writer interface {
 		Write(io.Writer) error
 	}
@@ -47,7 +47,7 @@ func (c *Codec) marshalHttpResponse(v any) ([]byte, error) {
 	return joiner.Marshal()
 }
 
-func (c *Codec) unmarshalHttpRequest(r io.Reader, v any) (int, error) {
+func (c *Codec) unmarshalHTTPRequest(r io.Reader, v any) (int, error) {
 	if req, ok := v.(*http.Request); ok {
 		v, err := http.ReadRequest(bufio.NewReader(r))
 		if err != nil {
@@ -64,7 +64,7 @@ func (c *Codec) unmarshalHttpRequest(r io.Reader, v any) (int, error) {
 	return 0, nil
 }
 
-func (c *Codec) unmarshalHttpResponse(r io.Reader, v any) (int, error) {
+func (c *Codec) unmarshalHTTPResponse(r io.Reader, v any) (int, error) {
 	if resp, ok := v.(*http.Response); ok {
 		v, err := http.ReadResponse(bufio.NewReader(r), nil)
 		if err != nil {
