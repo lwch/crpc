@@ -100,6 +100,9 @@ func (enc *Encrypter) Encrypt(src []byte) ([]byte, error) {
 
 // Decrypt decrypt data
 func (enc *Encrypter) Decrypt(src []byte) ([]byte, error) {
+	if len(src) == 0 {
+		return src, nil
+	}
 	bm := cipher.NewCBCDecrypter(enc.block, enc.iv)
 	if len(src)%bm.BlockSize() != 0 {
 		return nil, errInvalidBlockSize
