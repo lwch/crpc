@@ -24,6 +24,7 @@ var errOpenStreamTimeout = errors.New("network: open stream timeout")
 var errStreamNotFound = errors.New("network: stream not found")
 
 const (
+	flagData          = 0
 	flagStreamOpen    = 1 << 31 // 32位表示open请求
 	flagStreamOpenAck = 1 << 30 // 31位表示open成功
 	flagStreamClose   = 1 << 29 // 30位表示关闭请求
@@ -32,15 +33,25 @@ const (
 	flagPong          = 1 << 26 // 27位表示pong响应
 )
 
+type writeArgs struct {
+	flag uint32
+	data []byte
+}
+
+type writeControlArgs struct {
+	id   uint32
+	flag uint32
+}
+
 // Conn connection
 type Conn struct {
-	conn         net.Conn
-	mRead        sync.Mutex
-	sequence     atomic.Uint64
-	streamID     atomic.Uint32
-	chRead       chan []byte
-	chWrite      chan []byte
-	chOpenStream chan struct{}
+	conn           net.Conn
+	mRead          sync.Mutex
+	sequence       atomic.Uint64
+	streamID       atomic.Uint32
+	chRead         chan []byte
+	chWrite        chan writeArgs
+	chWriteControl chan writeControlArgs
 	// stream
 	streams        map[uint32]*Stream
 	mStreams       sync.RWMutex
@@ -74,8 +85,8 @@ func New(conn net.Conn) *Conn {
 	ret := &Conn{
 		conn:           conn,
 		chRead:         make(chan []byte, 10000),
-		chWrite:        make(chan []byte, 10000),
-		chOpenStream:   make(chan struct{}, 100),
+		chWrite:        make(chan writeArgs, 10000),
+		chWriteControl: make(chan writeControlArgs, 100),
 		streams:        make(map[uint32]*Stream),
 		chStreamOpened: make(chan *Stream),
 		ctx:            ctx,
@@ -103,7 +114,10 @@ func (c *Conn) AcceptStream() (*Stream, error) {
 
 // OpenStream open stream
 func (c *Conn) OpenStream(timeout time.Duration) (*Stream, error) {
-	c.chOpenStream <- struct{}{}
+	c.chWriteControl <- writeControlArgs{
+		id:   0,
+		flag: flagStreamOpen,
+	}
 	after := time.After(timeout)
 	select {
 	case <-after:
@@ -122,7 +136,10 @@ func (c *Conn) Write(p []byte) (int, error) {
 	}
 	data := make([]byte, len(p))
 	copy(data, p)
-	c.chWrite <- data
+	c.chWrite <- writeArgs{
+		flag: flagData,
+		data: data,
+	}
 	return len(p), nil
 }
 
@@ -274,14 +291,14 @@ func (c *Conn) loopWrite(cancel context.CancelFunc) {
 	defer c.onClose(err)
 	for {
 		select {
-		case p := <-c.chWrite:
-			err := c.writeData(p)
+		case args := <-c.chWrite:
+			err := c.writeData(args.flag, args.data)
 			if err != nil {
 				logging.Error("network: %v", err)
 				return
 			}
-		case <-c.chOpenStream:
-			err := c.writeOpenStream()
+		case ctrl := <-c.chWriteControl:
+			err := c.writeControl(ctrl.id | ctrl.flag)
 			if err != nil {
 				logging.Error("network: %v", err)
 				return
@@ -293,14 +310,14 @@ func (c *Conn) loopWrite(cancel context.CancelFunc) {
 	}
 }
 
-func (c *Conn) writeData(p []byte) error {
+func (c *Conn) writeData(flag uint32, p []byte) error {
 	var buf bytes.Buffer
 	sequence := c.sequence.Add(1)
 	err := binary.Write(&buf, binary.BigEndian, header{
 		Size:     uint16(len(p)),
 		Crc32:    crc32.ChecksumIEEE(p),
 		Sequence: sequence,
-		Flag:     0,
+		Flag:     flag,
 	})
 	if err != nil {
 		return fmt.Errorf("build packet header[%d]: %v", sequence, err)
@@ -316,13 +333,13 @@ func (c *Conn) writeData(p []byte) error {
 	return nil
 }
 
-func (c *Conn) writeOpenStream() error {
+func (c *Conn) writeControl(flag uint32) error {
 	sequence := c.sequence.Add(1)
 	err := binary.Write(c.conn, binary.BigEndian, header{
 		Size:     0,
 		Crc32:    0,
 		Sequence: sequence,
-		Flag:     flagStreamOpen,
+		Flag:     flag,
 	})
 	if err != nil {
 		return fmt.Errorf("send openstream: %v", err)

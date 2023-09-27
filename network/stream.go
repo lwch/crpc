@@ -1,13 +1,8 @@
 package network
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"errors"
-	"fmt"
-	"hash/crc32"
-	"io"
 	"math"
 	"sync/atomic"
 )
@@ -56,13 +51,10 @@ func (s *Stream) onClose(err error) {
 	s.closed.Store(true)
 	s.err = err
 	s.cancel()
-	sequence := s.parent.sequence.Add(1)
-	binary.Write(s.parent.conn, binary.BigEndian, header{
-		Size:     0,
-		Crc32:    0,
-		Sequence: sequence,
-		Flag:     s.ID() | flagStreamClose,
-	})
+	s.parent.chWriteControl <- writeControlArgs{
+		id:   s.ID(),
+		flag: flagStreamClose,
+	}
 	s.parent.mStreams.Lock()
 	delete(s.parent.streams, s.ID())
 	s.parent.mStreams.Unlock()
@@ -92,39 +84,20 @@ func (s *Stream) Write(p []byte) (int, error) {
 	if len(p) > math.MaxUint16 {
 		return 0, errTooLarge
 	}
-	var buf bytes.Buffer
-	sequence := s.parent.sequence.Add(1)
-	err := binary.Write(&buf, binary.BigEndian, header{
-		Size:     uint16(len(p)),
-		Crc32:    crc32.ChecksumIEEE(p),
-		Sequence: sequence,
-		Flag:     s.ID() | flagStreamData,
-	})
-	if err != nil {
-		return 0, fmt.Errorf("network: build packet header[%d]: %v", sequence, err)
-	}
-	_, err = io.Copy(&buf, bytes.NewReader(p))
-	if err != nil {
-		return 0, fmt.Errorf("network: build packet payload[%d]: %v", sequence, err)
-	}
-	_, err = s.parent.conn.Write(buf.Bytes())
-	if err != nil {
-		return 0, fmt.Errorf("network: write packet[%d]: %v", sequence, err)
+	data := make([]byte, len(p))
+	copy(data, p)
+	s.parent.chWrite <- writeArgs{
+		flag: s.ID() | flagStreamData,
+		data: data,
 	}
 	return len(p), nil
 }
 
 func (c *Conn) handleOpenStream() error {
 	stream := newStream(c, c.streamID.Add(1))
-	sequence := c.sequence.Add(1)
-	err := binary.Write(c.conn, binary.BigEndian, header{
-		Size:     0,
-		Crc32:    0,
-		Sequence: sequence,
-		Flag:     stream.id | flagStreamOpenAck,
-	})
-	if err != nil {
-		return err
+	c.chWriteControl <- writeControlArgs{
+		id:   stream.id,
+		flag: flagStreamOpenAck,
 	}
 	c.mStreams.Lock()
 	c.streams[stream.id] = stream
