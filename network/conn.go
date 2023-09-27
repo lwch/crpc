@@ -202,13 +202,13 @@ func (c *Conn) loopRead(cancel context.CancelFunc) {
 		}
 		if seq == nil {
 			if hdr.Sequence != 1 {
-				logging.Error("loop read => %s: invalid sequence, expect %d got %d",
-					c.conn.RemoteAddr().String(), 1, hdr.Sequence)
+				err = fmt.Errorf("invalid sequence, expect %d got %d", 1, hdr.Sequence)
+				logging.Error("loop read => %s: %v", c.conn.RemoteAddr().String(), err)
 				return
 			}
 		} else if hdr.Sequence != *seq+1 {
-			logging.Error("loop read => %s: invalid sequence, expect %d got %d",
-				c.conn.RemoteAddr().String(), *seq+1, hdr.Sequence)
+			err = fmt.Errorf("invalid sequence, expect %d got %d", *seq+1, hdr.Sequence)
+			logging.Error("loop read => %s: %v", c.conn.RemoteAddr().String(), err)
 			return
 		}
 		seq = &hdr.Sequence
@@ -287,6 +287,7 @@ func (c *Conn) loopWrite(cancel context.CancelFunc) {
 				return
 			}
 		case <-c.ctx.Done():
+			err = c.ctx.Err()
 			return
 		}
 	}
