@@ -200,7 +200,13 @@ func (c *Conn) loopRead(cancel context.CancelFunc) {
 			logging.Error("loop read => %s: %v", c.conn.RemoteAddr().String(), err)
 			return
 		}
-		if seq != nil && hdr.Sequence != *seq+1 {
+		if seq == nil {
+			if hdr.Sequence != 1 {
+				logging.Error("loop read => %s: invalid sequence, expect %d got %d",
+					c.conn.RemoteAddr().String(), 1, hdr.Sequence)
+				return
+			}
+		} else if hdr.Sequence != *seq+1 {
 			logging.Error("loop read => %s: invalid sequence, expect %d got %d",
 				c.conn.RemoteAddr().String(), *seq+1, hdr.Sequence)
 			return
