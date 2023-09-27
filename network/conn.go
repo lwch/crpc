@@ -211,6 +211,7 @@ func (c *Conn) loopRead(cancel context.CancelFunc) {
 	}()
 	defer c.onClose(err)
 	buf := make([]byte, math.MaxUint16)
+	var seq *uint64
 	for {
 		var hdr *header
 		var n int
@@ -219,6 +220,12 @@ func (c *Conn) loopRead(cancel context.CancelFunc) {
 			logging.Error("loop read => %s: %v", c.conn.RemoteAddr().String(), err)
 			return
 		}
+		if seq != nil && hdr.Sequence != *seq+1 {
+			logging.Error("loop read => %s: invalid sequence, expect %d got %d",
+				c.conn.RemoteAddr().String(), *seq+1, hdr.Sequence)
+			return
+		}
+		seq = &hdr.Sequence
 		if hdr.Flag&flagPing != 0 {
 			err = c.handlePing()
 			if err != nil {
