@@ -34,11 +34,13 @@ const (
 
 // Conn connection
 type Conn struct {
-	conn     net.Conn
-	mRead    sync.Mutex
-	sequence atomic.Uint64
-	streamID atomic.Uint32
-	chRead   chan []byte
+	conn         net.Conn
+	mRead        sync.Mutex
+	sequence     atomic.Uint64
+	streamID     atomic.Uint32
+	chRead       chan []byte
+	chWrite      chan []byte
+	chOpenStream chan struct{}
 	// stream
 	streams        map[uint32]*Stream
 	mStreams       sync.RWMutex
@@ -72,11 +74,14 @@ func New(conn net.Conn) *Conn {
 	ret := &Conn{
 		conn:           conn,
 		chRead:         make(chan []byte, 10000),
+		chWrite:        make(chan []byte, 10000),
+		chOpenStream:   make(chan struct{}, 100),
 		streams:        make(map[uint32]*Stream),
 		chStreamOpened: make(chan *Stream),
 		ctx:            ctx,
 	}
 	go ret.loopRead(cancel)
+	go ret.loopWrite(cancel)
 	return ret
 }
 
@@ -98,16 +103,7 @@ func (c *Conn) AcceptStream() (*Stream, error) {
 
 // OpenStream open stream
 func (c *Conn) OpenStream(timeout time.Duration) (*Stream, error) {
-	sequence := c.sequence.Add(1)
-	err := binary.Write(c.conn, binary.BigEndian, header{
-		Size:     0,
-		Crc32:    0,
-		Sequence: sequence,
-		Flag:     flagStreamOpen,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("network: send openstream: %v", err)
-	}
+	c.chOpenStream <- struct{}{}
 	after := time.After(timeout)
 	select {
 	case <-after:
@@ -124,25 +120,9 @@ func (c *Conn) Write(p []byte) (int, error) {
 	if len(p) > math.MaxUint16 {
 		return 0, errTooLarge
 	}
-	var buf bytes.Buffer
-	sequence := c.sequence.Add(1)
-	err := binary.Write(&buf, binary.BigEndian, header{
-		Size:     uint16(len(p)),
-		Crc32:    crc32.ChecksumIEEE(p),
-		Sequence: sequence,
-		Flag:     0,
-	})
-	if err != nil {
-		return 0, fmt.Errorf("network: build packet header[%d]: %v", sequence, err)
-	}
-	_, err = io.Copy(&buf, bytes.NewReader(p))
-	if err != nil {
-		return 0, fmt.Errorf("network: build packet payload[%d]: %v", sequence, err)
-	}
-	_, err = c.conn.Write(buf.Bytes())
-	if err != nil {
-		return 0, fmt.Errorf("network: write packet[%d]: %v", sequence, err)
-	}
+	data := make([]byte, len(p))
+	copy(data, p)
+	c.chWrite <- data
 	return len(p), nil
 }
 
@@ -277,6 +257,70 @@ func (c *Conn) loopRead(cancel context.CancelFunc) {
 		}
 		c.chRead <- dup(buf[:n])
 	}
+}
+
+func (c *Conn) loopWrite(cancel context.CancelFunc) {
+	var err error
+	defer func() {
+		c.err = err
+		cancel()
+	}()
+	defer c.onClose(err)
+	for {
+		select {
+		case p := <-c.chWrite:
+			err := c.writeData(p)
+			if err != nil {
+				logging.Error("network: %v", err)
+				return
+			}
+		case <-c.chOpenStream:
+			err := c.writeOpenStream()
+			if err != nil {
+				logging.Error("network: %v", err)
+				return
+			}
+		case <-c.ctx.Done():
+			return
+		}
+	}
+}
+
+func (c *Conn) writeData(p []byte) error {
+	var buf bytes.Buffer
+	sequence := c.sequence.Add(1)
+	err := binary.Write(&buf, binary.BigEndian, header{
+		Size:     uint16(len(p)),
+		Crc32:    crc32.ChecksumIEEE(p),
+		Sequence: sequence,
+		Flag:     0,
+	})
+	if err != nil {
+		return fmt.Errorf("build packet header[%d]: %v", sequence, err)
+	}
+	_, err = io.Copy(&buf, bytes.NewReader(p))
+	if err != nil {
+		return fmt.Errorf("build packet payload[%d]: %v", sequence, err)
+	}
+	_, err = c.conn.Write(buf.Bytes())
+	if err != nil {
+		return fmt.Errorf("write packet[%d]: %v", sequence, err)
+	}
+	return nil
+}
+
+func (c *Conn) writeOpenStream() error {
+	sequence := c.sequence.Add(1)
+	err := binary.Write(c.conn, binary.BigEndian, header{
+		Size:     0,
+		Crc32:    0,
+		Sequence: sequence,
+		Flag:     flagStreamOpen,
+	})
+	if err != nil {
+		return fmt.Errorf("send openstream: %v", err)
+	}
+	return nil
 }
 
 func (c *Conn) getStream(stream uint32) *Stream {
