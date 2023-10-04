@@ -8,8 +8,9 @@ github.com/klauspost/compress v1.17.0 h1:Rnbp4K9EjcDuVuHtd0dgA4qNuv9yKDYKK1ulpJw
 github.com/klauspost/compress v1.17.0/go.mod h1:ntbaceVETuRiXiv4DpjP66DpAtAGkEQskQzEyD//IeE=
 github.com/lwch/logging v1.0.1 h1:5v3XR5jaad/yuJsaC7OY8BfhHGHLT/pscc3iAVQTaKk=
 github.com/lwch/logging v1.0.1/go.mod h1:hiA9neZf+38gqBOAselhBL3NRz00+dr8d6vrHh8BJ88=
-github.com/lwch/runtime v1.0.0 h1:siMQ16oBQ7Kx+M0KnUrAhRe0j8I493zfIqmII0r2wRc=
 github.com/lwch/runtime v1.0.0/go.mod h1:D9d6Uzg9Nea3M+bkNyLHNk6Nhlz/j1c4mze1gG0tReI=
+github.com/lwch/runtime v1.0.1 h1:xfurs9IGzkTWfdum1K5GaDkEuGopohOQhk7roELmbf4=
+github.com/lwch/runtime v1.0.1/go.mod h1:mJuSABS7wUvRK3rUyV624NZ3+rV5eiAhsGEuU1iNrtk=
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 h1:E7g+9GITq07hpfrRu66IVDexMakfv52eLZ2CXBWiKr4=
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 google.golang.org/protobuf v1.26.0-rc.1/go.mod h1:jlhhOSvTdKEhbULTjvd4ARK9grFBp09yW+WbY/TyQbw=
