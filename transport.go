@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"strconv"
 	"strings"
 	"sync"
@@ -112,6 +113,8 @@ func (tp *transport) Call(req *http.Request, timeout time.Duration) (*http.Respo
 		defer tp.mResponse.Unlock()
 		delete(tp.onResponse, reqID)
 	}()
+	hdr, _ := httputil.DumpRequest(req, false)
+	logging.Debug("< http call(%d):\n%s", reqID, string(hdr))
 	_, err = tp.conn.Write(data)
 	if err != nil {
 		return nil, err
@@ -183,6 +186,8 @@ func (tp *transport) parse(data []byte) error {
 }
 
 func (tp *transport) handleRequest(req *http.Request, reqID uint64) {
+	hdr, _ := httputil.DumpRequest(req, false)
+	logging.Debug("> received http call(%d):\n%s", reqID, string(hdr))
 	if tp.onRequest == nil {
 		return
 	}
@@ -209,6 +214,8 @@ func (tp *transport) handleRequest(req *http.Request, reqID uint64) {
 		logging.Error("build response(%d): %v", reqID, err)
 		return
 	}
+	hdr, _ = httputil.DumpResponse(resp, false)
+	logging.Debug("< http response(%d):\n%s", reqID, string(hdr))
 	_, err = tp.conn.Write(data)
 	if err != nil {
 		logging.Error("write response(%d): %v", reqID, err)
