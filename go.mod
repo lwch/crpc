@@ -3,7 +3,7 @@ module github.com/lwch/crpc
 go 1.18
 
 require (
-	github.com/klauspost/compress v1.17.8
+	github.com/klauspost/compress v1.17.9
 	github.com/lwch/logging v1.1.3
 	google.golang.org/protobuf v1.34.2
 )
