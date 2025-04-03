@@ -109,7 +109,7 @@ func (cli *Client) serve() error {
 }
 
 // Call call http request
-func (cli *Client) Call(req *http.Request, timeout time.Duration) (*http.Response, error) {
+func (cli *Client) Call(ctx context.Context, req *http.Request) (*http.Response, error) {
 	select {
 	case <-cli.ctx.Done():
 		return nil, ErrClosed
@@ -121,11 +121,11 @@ func (cli *Client) Call(req *http.Request, timeout time.Duration) (*http.Respons
 	if tp == nil {
 		return nil, ErrReconnecting
 	}
-	return tp.Call(req, timeout)
+	return tp.Call(ctx, req)
 }
 
 // OpenStream open stream
-func (cli *Client) OpenStream(timeout time.Duration) (*Stream, error) {
+func (cli *Client) OpenStream(ctx context.Context) (*Stream, error) {
 	select {
 	case <-cli.ctx.Done():
 		return nil, ErrClosed
@@ -137,5 +137,5 @@ func (cli *Client) OpenStream(timeout time.Duration) (*Stream, error) {
 	if tp == nil {
 		return nil, ErrReconnecting
 	}
-	return tp.OpenStream(timeout)
+	return tp.OpenStream(ctx)
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io"
 	"log"
 	"net/http"
@@ -25,13 +26,17 @@ func main() {
 	cli.SetEncrypter(encrypt.New(encrypt.Aes, example.Key))
 	cli.SetCompresser(compress.New(compress.Gzip))
 	for {
-		req, err := http.NewRequest(http.MethodGet, "http://localhost/ping", nil)
-		assert(err)
-		rep, err := cli.Call(req, time.Second)
-		assert(err)
-		data, err := io.ReadAll(rep.Body)
-		assert(err)
-		log.Printf("status_code=%d, data=%s", rep.StatusCode, string(data))
+		func() {
+			req, err := http.NewRequest(http.MethodGet, "http://localhost/ping", nil)
+			assert(err)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			rep, err := cli.Call(ctx, req)
+			assert(err)
+			data, err := io.ReadAll(rep.Body)
+			assert(err)
+			log.Printf("status_code=%d, data=%s", rep.StatusCode, string(data))
+		}()
 		time.Sleep(time.Second)
 	}
 }

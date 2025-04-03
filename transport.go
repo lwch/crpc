@@ -20,8 +20,8 @@ import (
 	"github.com/lwch/logging"
 )
 
-// ErrTimeout timeout error
-var ErrTimeout = errors.New("transport: timeout")
+// ErrDone done error
+var ErrDone = errors.New("transport: done")
 
 var errDataType = errors.New("transport: data type error")
 
@@ -79,8 +79,8 @@ func (tp *transport) AcceptStream() (*Stream, error) {
 	}, nil
 }
 
-func (tp *transport) OpenStream(timeout time.Duration) (*Stream, error) {
-	s, err := tp.conn.OpenStream(timeout)
+func (tp *transport) OpenStream(ctx context.Context) (*Stream, error) {
+	s, err := tp.conn.OpenStream(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (tp *transport) Close() error {
 	return tp.conn.Close()
 }
 
-func (tp *transport) Call(req *http.Request, timeout time.Duration) (*http.Response, error) {
+func (tp *transport) Call(ctx context.Context, req *http.Request) (*http.Response, error) {
 	data, reqID, err := tp.buildRequest(req)
 	if err != nil {
 		return nil, err
@@ -122,8 +122,8 @@ func (tp *transport) Call(req *http.Request, timeout time.Duration) (*http.Respo
 	select {
 	case <-tp.ctx.Done():
 		return nil, tp.err
-	case <-time.After(timeout):
-		return nil, ErrTimeout
+	case <-ctx.Done():
+		return nil, ErrDone
 	case resp := <-ch:
 		return resp, nil
 	}
