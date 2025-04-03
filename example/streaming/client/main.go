@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -22,7 +23,9 @@ func main() {
 	defer cli.Close()
 	cli.SetEncrypter(encrypt.New(encrypt.Aes, example.Key))
 	cli.SetCompresser(compress.New(compress.Gzip))
-	s, err := cli.OpenStream(time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	s, err := cli.OpenStream(ctx)
 	assert(err)
 	defer s.Close()
 	buf := make([]byte, 1024)

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,8 +20,8 @@ import (
 	"github.com/lwch/logging"
 )
 
-// ErrTimeout timeout error
-var ErrTimeout = errors.New("transport: timeout")
+// ErrDone done error
+var ErrDone = errors.New("transport: done")
 
 var errDataType = errors.New("transport: data type error")
 
@@ -78,8 +79,8 @@ func (tp *transport) AcceptStream() (*Stream, error) {
 	}, nil
 }
 
-func (tp *transport) OpenStream(timeout time.Duration) (*Stream, error) {
-	s, err := tp.conn.OpenStream(timeout)
+func (tp *transport) OpenStream(ctx context.Context) (*Stream, error) {
+	s, err := tp.conn.OpenStream(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +98,7 @@ func (tp *transport) Close() error {
 	return tp.conn.Close()
 }
 
-func (tp *transport) Call(req *http.Request, timeout time.Duration) (*http.Response, error) {
+func (tp *transport) Call(ctx context.Context, req *http.Request) (*http.Response, error) {
 	data, reqID, err := tp.buildRequest(req)
 	if err != nil {
 		return nil, err
@@ -112,6 +113,8 @@ func (tp *transport) Call(req *http.Request, timeout time.Duration) (*http.Respo
 		defer tp.mResponse.Unlock()
 		delete(tp.onResponse, reqID)
 	}()
+	hdr, _ := httputil.DumpRequest(req, false)
+	logging.Debug("< http call(%d):\n%s", reqID, string(hdr))
 	_, err = tp.conn.Write(data)
 	if err != nil {
 		return nil, err
@@ -119,8 +122,8 @@ func (tp *transport) Call(req *http.Request, timeout time.Duration) (*http.Respo
 	select {
 	case <-tp.ctx.Done():
 		return nil, tp.err
-	case <-time.After(timeout):
-		return nil, ErrTimeout
+	case <-ctx.Done():
+		return nil, ErrDone
 	case resp := <-ch:
 		return resp, nil
 	}
@@ -183,6 +186,8 @@ func (tp *transport) parse(data []byte) error {
 }
 
 func (tp *transport) handleRequest(req *http.Request, reqID uint64) {
+	hdr, _ := httputil.DumpRequest(req, false)
+	logging.Debug("> received http call(%d):\n%s", reqID, string(hdr))
 	if tp.onRequest == nil {
 		return
 	}
@@ -209,6 +214,8 @@ func (tp *transport) handleRequest(req *http.Request, reqID uint64) {
 		logging.Error("build response(%d): %v", reqID, err)
 		return
 	}
+	hdr, _ = httputil.DumpResponse(resp, false)
+	logging.Debug("< http response(%d):\n%s", reqID, string(hdr))
 	_, err = tp.conn.Write(data)
 	if err != nil {
 		logging.Error("write response(%d): %v", reqID, err)

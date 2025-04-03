@@ -12,7 +12,6 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/lwch/logging"
 )
@@ -20,7 +19,7 @@ import (
 var errTooLarge = errors.New("network: too large")
 var errBufferTooShort = errors.New("network: buffer too short")
 var errInvalidPacketChecksum = errors.New("network: invalid packet checksum")
-var errOpenStreamTimeout = errors.New("network: open stream timeout")
+var errOpenStreamDone = errors.New("network: open stream done")
 var errStreamNotFound = errors.New("network: stream not found")
 
 const (
@@ -113,15 +112,14 @@ func (c *Conn) AcceptStream() (*Stream, error) {
 }
 
 // OpenStream open stream
-func (c *Conn) OpenStream(timeout time.Duration) (*Stream, error) {
+func (c *Conn) OpenStream(ctx context.Context) (*Stream, error) {
 	c.chWriteControl <- writeControlArgs{
 		id:   0,
 		flag: flagStreamOpen,
 	}
-	after := time.After(timeout)
 	select {
-	case <-after:
-		return nil, errOpenStreamTimeout
+	case <-ctx.Done():
+		return nil, errOpenStreamDone
 	case <-c.ctx.Done():
 		return nil, c.err
 	case stream := <-c.chStreamOpened:
