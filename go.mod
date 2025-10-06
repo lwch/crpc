@@ -5,7 +5,7 @@ go 1.23
 require (
 	github.com/klauspost/compress v1.18.0
 	github.com/lwch/logging v1.1.3
-	google.golang.org/protobuf v1.36.9
+	google.golang.org/protobuf v1.36.10
 )
 
 require (
