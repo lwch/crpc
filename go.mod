@@ -1,9 +1,9 @@
 module github.com/lwch/crpc
 
-go 1.23
+go 1.24
 
 require (
-	github.com/klauspost/compress v1.18.4
+	github.com/klauspost/compress v1.18.5
 	github.com/lwch/logging v1.1.3
 	google.golang.org/protobuf v1.36.11
 )
